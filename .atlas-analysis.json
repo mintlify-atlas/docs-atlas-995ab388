@@ -1,0 +1,210 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Deno",
+  "projectDescription": "A modern runtime for JavaScript and TypeScript with secure defaults and great developer experience.",
+  "theme": "aspen",
+  "primaryColor": "#70FFAF",
+  "lightColor": "#9EFFC9",
+  "darkColor": "#00D673",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart",
+              "first-steps"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/runtime",
+              "concepts/permissions",
+              "concepts/modules",
+              "concepts/typescript",
+              "concepts/web-standards"
+            ]
+          },
+          {
+            "group": "Command Reference",
+            "pages": [
+              "commands/overview",
+              "commands/run",
+              "commands/test",
+              "commands/bench",
+              "commands/fmt",
+              "commands/lint",
+              "commands/compile",
+              "commands/bundle",
+              "commands/doc",
+              "commands/info",
+              "commands/cache",
+              "commands/check",
+              "commands/coverage",
+              "commands/init",
+              "commands/install",
+              "commands/uninstall",
+              "commands/repl",
+              "commands/serve",
+              "commands/task",
+              "commands/upgrade",
+              "commands/jupyter",
+              "commands/publish",
+              "commands/add",
+              "commands/remove"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/configuration",
+              "guides/imports",
+              "guides/package-management",
+              "guides/npm-compatibility",
+              "guides/node-compatibility",
+              "guides/environment-variables",
+              "guides/debugging",
+              "guides/testing",
+              "guides/benchmarking",
+              "guides/linting-formatting",
+              "guides/deploying"
+            ]
+          },
+          {
+            "group": "Standard Library",
+            "pages": [
+              "stdlib/overview",
+              "stdlib/using-stdlib",
+              "stdlib/jsr-integration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Runtime APIs",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/web-platform-apis"
+            ]
+          },
+          {
+            "group": "Deno Namespace",
+            "pages": [
+              "api/deno/file-system",
+              "api/deno/network",
+              "api/deno/processes",
+              "api/deno/permissions",
+              "api/deno/signals",
+              "api/deno/ffi",
+              "api/deno/kv",
+              "api/deno/cron",
+              "api/deno/testing",
+              "api/deno/errors"
+            ]
+          },
+          {
+            "group": "Extensions",
+            "pages": [
+              "api/extensions/overview",
+              "api/extensions/web",
+              "api/extensions/fetch",
+              "api/extensions/websocket",
+              "api/extensions/crypto",
+              "api/extensions/http",
+              "api/extensions/webgpu",
+              "api/extensions/broadcast-channel",
+              "api/extensions/webstorage"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "groups": [
+          {
+            "group": "Get Involved",
+            "pages": [
+              "contributing/overview",
+              "contributing/building-from-source",
+              "contributing/development-guide",
+              "contributing/architecture"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "contributing/code-structure",
+              "contributing/runtime-internals",
+              "contributing/extensions",
+              "contributing/testing",
+              "contributing/debugging"
+            ]
+          },
+          {
+            "group": "Guidelines",
+            "pages": [
+              "contributing/style-guide",
+              "contributing/submitting-changes",
+              "contributing/release-process"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Secure by default with granular permissions system",
+    "Native TypeScript support without configuration",
+    "Built-in tooling (formatter, linter, test runner, bundler)",
+    "Web standards compatibility (fetch, WebSocket, streams)",
+    "Node.js and npm compatibility",
+    "Single executable with no dependencies",
+    "Built-in package manager with JSR and npm support",
+    "WebAssembly and FFI support",
+    "Deno KV for built-in key-value database",
+    "HTTP server with Deno.serve API",
+    "Built-in benchmarking and code coverage",
+    "Compile to standalone executables"
+  ],
+  "publicApiSurface": [
+    "deno run - Execute JavaScript/TypeScript programs",
+    "deno test - Run tests",
+    "deno bench - Run benchmarks",
+    "deno fmt - Format source code",
+    "deno lint - Lint source code",
+    "deno compile - Compile to standalone executable",
+    "deno bundle - Bundle module and dependencies",
+    "deno doc - Generate documentation",
+    "deno info - Show module information",
+    "deno cache - Cache dependencies",
+    "deno check - Type-check files",
+    "deno coverage - Generate code coverage",
+    "deno init - Initialize a new project",
+    "deno install - Install script as executable",
+    "deno uninstall - Uninstall executable",
+    "deno repl - Start interactive REPL",
+    "deno serve - Run HTTP server",
+    "deno task - Run task from config",
+    "deno upgrade - Upgrade Deno installation",
+    "deno jupyter - Jupyter kernel support",
+    "deno publish - Publish to JSR",
+    "deno add - Add dependencies",
+    "deno remove - Remove dependencies",
+    "Deno.serve() - HTTP server API",
+    "Deno.readFile() - File system operations",
+    "Deno.connect() - Network operations",
+    "Deno.Command() - Process management",
+    "Deno.KV - Key-value database",
+    "Deno.cron() - Scheduled tasks",
+    "Deno.test() - Testing API",
+    "Deno.bench() - Benchmarking API"
+  ]
+}
