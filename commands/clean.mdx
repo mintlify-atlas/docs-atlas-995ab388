@@ -1,0 +1,181 @@
+---
+title: deno clean
+description: Remove the Deno cache directory and clean up cached dependencies
+---
+
+# deno clean
+
+Remove the Deno cache directory to free up disk space or force re-downloading of dependencies.
+
+## Basic usage
+
+```bash
+deno clean
+```
+
+This command removes the entire Deno cache directory, including:
+- Downloaded remote modules
+- Compiled TypeScript files
+- npm packages
+- Generated source maps
+
+## Syntax
+
+```bash
+deno clean [OPTIONS]
+```
+
+## Options
+
+<ParamField path="--except <PATHS>" type="string[]">
+  Clean the cache except for dependencies used by the specified entry points. This allows you to remove unused cached files while keeping dependencies for specific projects.
+</ParamField>
+
+<ParamField path="--dry-run" type="boolean" default="false">
+  Show what would be removed without actually deleting files.
+</ParamField>
+
+## Examples
+
+### Clean entire cache
+
+```bash
+deno clean
+```
+
+This removes all cached files and frees up disk space.
+
+### Dry run
+
+```bash
+deno clean --dry-run
+```
+
+See what would be removed without actually deleting anything:
+
+```
+would remove:
+ /Users/username/Library/Caches/deno/deps
+ /Users/username/Library/Caches/deno/gen
+ /Users/username/Library/Caches/deno/npm
+```
+
+### Clean except specific dependencies
+
+```bash
+deno clean --except main.ts
+```
+
+This removes all cached files except those used by `main.ts` and its dependencies.
+
+```bash
+deno clean --except server.ts worker.ts
+```
+
+Preserve dependencies for multiple entry points.
+
+## What gets removed
+
+The `deno clean` command removes:
+
+<AccordionGroup>
+  <Accordion title="Remote module cache">
+    Downloaded files from `https://` and `http://` imports.
+    
+    Location: `$DENO_DIR/deps/`
+  </Accordion>
+  
+  <Accordion title="Generated JavaScript">
+    Transpiled TypeScript files and source maps.
+    
+    Location: `$DENO_DIR/gen/`
+  </Accordion>
+  
+  <Accordion title="npm packages">
+    Downloaded npm packages and their metadata.
+    
+    Location: `$DENO_DIR/npm/`
+  </Accordion>
+  
+  <Accordion title="node_modules (local)">
+    When using `--except`, unused packages from `node_modules/.deno/` are also removed.
+  </Accordion>
+</AccordionGroup>
+
+## Cache location
+
+The Deno cache directory location varies by operating system:
+
+| OS | Default Location |
+|----|------------------|
+| Linux/Unix | `$HOME/.cache/deno` |
+| macOS | `$HOME/Library/Caches/deno` |
+| Windows | `%LOCALAPPDATA%\deno` |
+
+You can override this with the `DENO_DIR` environment variable:
+
+```bash
+export DENO_DIR=/custom/cache/path
+deno clean
+```
+
+## Use cases
+
+<CardGroup cols={2}>
+  <Card title="Free disk space" icon="hard-drive">
+    Remove all cached files to reclaim storage
+  </Card>
+  <Card title="Fix cache corruption" icon="rotate">
+    Clear corrupted cache to force fresh downloads
+  </Card>
+  <Card title="Test fresh installs" icon="flask">
+    Verify dependency resolution works correctly
+  </Card>
+  <Card title="Remove old dependencies" icon="trash">
+    Clean up unused dependencies from old projects
+  </Card>
+</CardGroup>
+
+## Selective cleaning with --except
+
+The `--except` flag is useful for maintaining a clean cache while preserving dependencies for active projects:
+
+```bash
+# Clean everything except dependencies for your main project
+deno clean --except src/main.ts
+
+# Preserve dependencies for multiple projects
+deno clean --except project1/mod.ts project2/mod.ts
+
+# Preview what would be removed
+deno clean --except main.ts --dry-run
+```
+
+This command:
+1. Analyzes the module graph for specified entry points
+2. Identifies all required dependencies
+3. Removes cached files not used by those dependencies
+4. Also cleans up unused npm packages and node_modules symlinks
+
+## After cleaning
+
+After running `deno clean`, the next time you run a Deno command:
+- Remote modules will be re-downloaded
+- TypeScript files will be re-compiled
+- npm packages will be re-installed
+
+This may take longer than usual as the cache is repopulated.
+
+## Best practices
+
+<Warning>
+- Cleaning the cache does not affect your source code
+- Lock files (`deno.lock`) are not removed
+- Use `--dry-run` first to preview changes
+- The `--except` flag requires analyzing the module graph, which may take time for large projects
+</Warning>
+
+## See also
+
+- [`deno cache`](/commands/cache) - Pre-download and cache dependencies
+- [`deno info`](/commands/info) - View cache location and dependency tree

@@ -1,0 +1,177 @@
+---
+title: deno eval
+description: Evaluate JavaScript or TypeScript code from the command line
+---
+
+# deno eval
+
+Evaluate JavaScript or TypeScript code directly from the command line without creating a file.
+
+## Basic usage
+
+```bash
+deno eval "console.log('Hello, world!')"
+```
+
+## Syntax
+
+```bash
+deno eval [OPTIONS] <CODE>
+```
+
+<ParamField path="CODE" type="string" required>
+  The JavaScript or TypeScript code to evaluate.
+</ParamField>
+
+## Options
+
+<ParamField path="--print" type="boolean" default="false">
+  Print the result of the evaluated expression.
+</ParamField>
+
+### Permission flags
+
+All standard permission flags are supported. See the [permissions guide](/concepts/permissions) for details.
+
+### Common options
+
+- `--ext <EXT>` - Set content type (ts, tsx, js, jsx)
+- `--no-check` - Skip type checking
+- `--import-map <FILE>` - Use import map
+- `--env <FILE>` - Load environment variables from file
+
+## Examples
+
+### Simple expression
+
+```bash
+deno eval "console.log(1 + 2)"
+# Output: 3
+```
+
+### Print result
+
+```bash
+deno eval --print "1 + 2"
+# Output: 3
+```
+
+### Using with permissions
+
+```bash
+# Read a file
+deno eval --allow-read "console.log(Deno.readTextFileSync('README.md'))"
+
+# Fetch from URL
+deno eval --allow-net "const res = await fetch('https://example.com'); console.log(await res.text())"
+```
+
+### TypeScript code
+
+```bash
+deno eval "const x: number = 42; console.log(x * 2)"
+# Output: 84
+```
+
+### Multi-line code
+
+```bash
+deno eval '
+  const items = [1, 2, 3, 4, 5];
+  const sum = items.reduce((a, b) => a + b, 0);
+  console.log("Sum:", sum);
+'
+# Output: Sum: 15
+```
+
+### JSON processing
+
+```bash
+# Parse JSON
+deno eval --print 'JSON.parse(`{"name":"Deno","version":"2.0"}`).name'
+# Output: Deno
+
+# Create JSON
+deno eval --print 'JSON.stringify({a: 1, b: 2})'
+# Output: {"a":1,"b":2}
+```
+
+### Environment variables
+
+```bash
+deno eval --allow-env 'console.log("User:", Deno.env.get("USER"))'
+```
+
+### Using Deno APIs
+
+```bash
+# Get Deno version
+deno eval 'console.log(Deno.version)'
+
+# List directory
+deno eval --allow-read '
+  for await (const entry of Deno.readDir(".")) {
+    console.log(entry.name);
+  }
+'
+
+# HTTP server (quick test)
+deno eval --allow-net 'Deno.serve(() => new Response("Hello!"))'
+```
+
+### Working with dates
+
+```bash
+# Current timestamp
+deno eval --print 'Date.now()'
+
+# Formatted date
+deno eval --print 'new Date().toISOString()'
+```
+
+## Use cases
+
+<AccordionGroup>
+  <Accordion title="Quick calculations">
+    ```bash
+    deno eval --print "Math.sqrt(144)"
+    deno eval --print "(100 * 1.15).toFixed(2)"
+    ```
+  </Accordion>
+  
+  <Accordion title="Testing code snippets">
+    ```bash
+    deno eval "const arr = [1,2,3]; console.log(arr.map(x => x * 2))"
+    ```
+  </Accordion>
+  
+  <Accordion title="One-off scripts">
+    ```bash
+    deno eval --allow-read --allow-write '
+      const data = Deno.readTextFileSync("input.txt");
+      const processed = data.toUpperCase();
+      Deno.writeTextFileSync("output.txt", processed);
+    '
+    ```
+  </Accordion>
+  
+  <Accordion title="Pipeline processing">
+    ```bash
+    echo '{"value": 42}' | deno eval --print 'JSON.parse(await Deno.stdin.readAll()).value'
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Tips
+
+<Note>
+- Use single quotes to avoid shell interpolation issues
+- Use `--print` to automatically print the result without `console.log()`
+- TypeScript is supported by default
+- Top-level await is supported
+</Note>
+
+## See also
+
+- [`deno repl`](/commands/repl) - Interactive REPL
+- [`deno run`](/commands/run) - Run a script file

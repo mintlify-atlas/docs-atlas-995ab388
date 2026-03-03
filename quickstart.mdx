@@ -1,0 +1,243 @@
+---
+title: Quickstart
+description: Build your first Deno application in 5 minutes
+---
+
+# Quickstart
+
+Get up and running with Deno in just a few minutes by building your first web server.
+
+<Note>
+  Make sure you have [installed Deno](/installation) before starting this tutorial.
+</Note>
+
+## Your first Deno program
+
+Deno is most commonly used to build web servers. Let's create a simple HTTP server that responds with "Hello, world!".
+
+<Steps>
+  <Step title="Create a server file">
+    Create a new file called `server.ts` with the following TypeScript code:
+
+    ```typescript server.ts
+    Deno.serve((_req: Request) => {
+      return new Response("Hello, world!");
+    });
+    ```
+
+    This code creates an HTTP server using Deno's built-in `Deno.serve()` function. The server responds to every request with "Hello, world!".
+  </Step>
+
+  <Step title="Run the server">
+    Run your server with the following command:
+
+    ```bash
+    deno run --allow-net server.ts
+    ```
+
+    The `--allow-net` flag grants permission to access the network. Deno is secure by default, so you must explicitly grant permissions.
+  </Step>
+
+  <Step title="Test your server">
+    Open your browser and navigate to [http://localhost:8000](http://localhost:8000). You should see "Hello, world!" displayed.
+
+    You can also test it from the command line:
+
+    ```bash
+    curl http://localhost:8000
+    ```
+  </Step>
+</Steps>
+
+## Understanding the code
+
+### Deno.serve()
+
+The `Deno.serve()` function is Deno's built-in HTTP server. It takes a handler function that receives a `Request` object and returns a `Response`:
+
+```typescript
+Deno.serve((req: Request) => {
+  return new Response("Hello, world!");
+});
+```
+
+### Permissions
+
+Deno is secure by default. The `--allow-net` flag grants permission to access the network. Without this flag, the program would fail with a permission error.
+
+Learn more about [Deno's permission system](/concepts/permissions).
+
+## Enhance your server
+
+### Add dynamic responses
+
+```typescript server.ts
+Deno.serve((req: Request) => {
+  const url = new URL(req.url);
+  
+  if (url.pathname === "/") {
+    return new Response("Welcome to Deno!");
+  }
+  
+  if (url.pathname === "/about") {
+    return new Response("This is a Deno server");
+  }
+  
+  return new Response("Not found", { status: 404 });
+});
+```
+
+### Return JSON
+
+```typescript server.ts
+Deno.serve((req: Request) => {
+  const data = {
+    message: "Hello from Deno!",
+    timestamp: new Date().toISOString(),
+    path: new URL(req.url).pathname,
+  };
+  
+  return Response.json(data);
+});
+```
+
+### Handle different HTTP methods
+
+```typescript server.ts
+Deno.serve(async (req: Request) => {
+  const url = new URL(req.url);
+  
+  if (url.pathname === "/api/data" && req.method === "GET") {
+    return Response.json({ items: ["apple", "banana", "orange"] });
+  }
+  
+  if (url.pathname === "/api/data" && req.method === "POST") {
+    const body = await req.json();
+    return Response.json({ received: body }, { status: 201 });
+  }
+  
+  return new Response("Not found", { status: 404 });
+});
+```
+
+## Running with TypeScript
+
+Deno has native TypeScript support. You can use TypeScript features without any configuration:
+
+```typescript server.ts
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+const users: User[] = [
+  { id: 1, name: "Alice", email: "alice@example.com" },
+  { id: 2, name: "Bob", email: "bob@example.com" },
+];
+
+Deno.serve((req: Request) => {
+  const url = new URL(req.url);
+  
+  if (url.pathname === "/users") {
+    return Response.json(users);
+  }
+  
+  const match = url.pathname.match(/^\/users\/(\d+)$/);
+  if (match) {
+    const userId = parseInt(match[1]);
+    const user = users.find(u => u.id === userId);
+    
+    if (user) {
+      return Response.json(user);
+    }
+    return new Response("User not found", { status: 404 });
+  }
+  
+  return new Response("Not found", { status: 404 });
+});
+```
+
+## Development workflow
+
+### Watch mode
+
+Use watch mode to automatically restart your server when files change:
+
+```bash
+deno run --allow-net --watch server.ts
+```
+
+### Type checking
+
+Deno type-checks your code by default. To explicitly check types without running:
+
+```bash
+deno check server.ts
+```
+
+### REPL
+
+Experiment with code interactively:
+
+```bash
+deno
+> const response = await fetch("http://localhost:8000")
+> await response.text()
+```
+
+## Next steps
+
+Now that you've built your first Deno application, explore more features:
+
+<CardGroup cols={2}>
+  <Card title="Core commands" icon="terminal" href="/first-steps">
+    Learn essential Deno commands
+  </Card>
+  <Card title="Permissions" icon="shield" href="/concepts/permissions">
+    Understand Deno's security model
+  </Card>
+  <Card title="Testing" icon="vial" href="/guides/testing">
+    Write tests for your application
+  </Card>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Configure your Deno project
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Permission denied errors">
+    If you see permission errors, make sure you're using the appropriate `--allow-*` flags:
+    
+    ```bash
+    # Network access
+    deno run --allow-net server.ts
+    
+    # File system read
+    deno run --allow-read server.ts
+    
+    # Multiple permissions
+    deno run --allow-net --allow-read server.ts
+    ```
+  </Accordion>
+  
+  <Accordion title="Port already in use">
+    If port 8000 is already in use, specify a different port:
+    
+    ```typescript
+    Deno.serve({ port: 3000 }, (req) => {
+      return new Response("Hello, world!");
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="TypeScript errors">
+    Deno type-checks your code by default. If you encounter type errors, you can:
+    
+    1. Fix the type errors (recommended)
+    2. Use `// @ts-ignore` to suppress specific errors
+    3. Use `--no-check` flag to skip type checking (not recommended)
+  </Accordion>
+</AccordionGroup>
