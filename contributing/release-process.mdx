@@ -1,0 +1,433 @@
+---
+title: Release Process
+description: How Deno releases work, versioning, and release channels
+---
+
+This guide explains how Deno releases work, the versioning scheme, and how to download and install specific versions.
+
+## Release Overview
+
+Deno follows a regular release cadence with multiple releases per month, including both major feature releases and patch releases for bug fixes.
+
+### Release Channels
+
+<CardGroup cols={2}>
+  <Card title="Stable Releases" icon="circle-check">
+    Production-ready releases with thoroughly tested features. These are the recommended versions for general use.
+  </Card>
+
+  <Card title="Canary Releases" icon="flask">
+    Cutting-edge builds from the main branch. Updated frequently with the latest changes but may contain bugs.
+  </Card>
+</CardGroup>
+
+## Versioning Scheme
+
+Deno uses semantic versioning with the format `MAJOR.MINOR.PATCH`:
+
+- **MAJOR** version (2.x.x) - Breaking changes
+- **MINOR** version (2.7.x) - New features, backward compatible
+- **PATCH** version (2.7.1) - Bug fixes and minor improvements
+
+### Version History
+
+Recent major releases:
+
+- **Deno 2.7.x** (Current) - Latest features and improvements
+- **Deno 2.6.x** - TypeScript 5.9.2, V8 14.0.0, permissions in config
+- **Deno 2.5.x** - Deno bundle API, HTML entrypoint support
+- **Deno 2.4.x** - Windows on ARM, JSR support
+
+## Release Frequency
+
+### Typical Release Schedule
+
+- **Minor releases** (2.x.0): Every 2-4 weeks with new features
+- **Patch releases** (2.x.y): Weekly or as needed for critical fixes
+- **Canary builds**: Daily from the main branch
+
+### Recent Release Cadence
+
+Example from recent history:
+
+```
+2.7.1 / 2026.02.25  (1 day after 2.7.0)
+2.7.0 / 2026.02.25  (8 days after 2.6.10)
+2.6.10 / 2026.02.17 (7 days after 2.6.9)
+2.6.9 / 2026.02.10  (8 days after 2.6.8)
+```
+
+## What Goes Into a Release
+
+### Feature Releases (Minor Versions)
+
+Minor releases typically include:
+
+<AccordionGroup>
+  <Accordion title="New Features" icon="sparkles">
+    - New CLI commands (e.g., `deno create`, `deno audit`)
+    - New APIs and functionality
+    - New flags and options
+    - Runtime capabilities
+  </Accordion>
+
+  <Accordion title="Enhancements" icon="arrow-up">
+    - Improvements to existing features
+    - Performance optimizations
+    - Better error messages
+    - Enhanced compatibility
+  </Accordion>
+
+  <Accordion title="Bug Fixes" icon="bug">
+    - Critical bug fixes
+    - Node.js compatibility fixes
+    - Extension improvements
+    - Edge case handling
+  </Accordion>
+
+  <Accordion title="Dependency Updates" icon="arrows-rotate">
+    - V8 engine updates
+    - TypeScript version bumps
+    - Third-party library updates
+  </Accordion>
+</AccordionGroup>
+
+### Patch Releases
+
+Patch releases focus on:
+
+- **Critical bug fixes** that affect stability or security
+- **Regression fixes** from recent releases
+- **Minor compatibility improvements**
+- **Documentation updates**
+
+### Example: Deno 2.7.0 Release
+
+The 2.7.0 release included:
+
+**Major Features:**
+- `deno create` command for scaffolding projects
+- `deno audit` with `--ignore` flag for filtering advisories
+- `--check-js` flag for type-checking JavaScript
+- Brotli support in compression streams
+- Stabilized Temporal API
+
+**Improvements:**
+- npm overrides support
+- Better install caching
+- Enhanced LSP features
+
+**Bug Fixes:**
+- Over 50 bug fixes across extensions
+- Node.js compatibility improvements
+- Performance optimizations
+
+## Downloading Releases
+
+### Official Release Page
+
+Binary releases can be downloaded from:
+
+```
+https://github.com/denoland/deno/releases
+```
+
+Each release includes:
+- Pre-built binaries for all supported platforms
+- Source code archives
+- Release notes with changelogs
+- Installation instructions
+
+### Installation Methods
+
+<Tabs>
+  <Tab title="Shell (Mac/Linux)">
+    ```bash
+    curl -fsSL https://deno.land/install.sh | sh
+    ```
+  </Tab>
+
+  <Tab title="PowerShell (Windows)">
+    ```powershell
+    irm https://deno.land/install.ps1 | iex
+    ```
+  </Tab>
+
+  <Tab title="Homebrew (Mac)">
+    ```bash
+    brew install deno
+    ```
+  </Tab>
+
+  <Tab title="Chocolatey (Windows)">
+    ```powershell
+    choco install deno
+    ```
+  </Tab>
+</Tabs>
+
+### Installing Specific Versions
+
+To install a specific version:
+
+```bash
+# Using the install script with version
+curl -fsSL https://deno.land/install.sh | sh -s v2.7.0
+
+# Or download directly from GitHub releases
+wget https://github.com/denoland/deno/releases/download/v2.7.0/deno-x86_64-unknown-linux-gnu.zip
+```
+
+### Upgrading Deno
+
+Use the built-in upgrade command:
+
+```bash
+# Upgrade to latest stable
+deno upgrade
+
+# Upgrade to specific version
+deno upgrade --version 2.7.0
+
+# Upgrade to canary
+deno upgrade --canary
+```
+
+## Release Notes Format
+
+Each release includes detailed notes in `Releases.md` with the following structure:
+
+### Version Header
+
+```markdown
+### 2.7.0 / 2026.02.25
+
+Read more: http://deno.com/blog/v2.7
+```
+
+### Change Categories
+
+Changes are categorized by type:
+
+- **feat** - New features
+- **fix** - Bug fixes
+- **perf** - Performance improvements
+- **chore** - Maintenance and internal changes
+
+### Change Format
+
+Each change follows this format:
+
+```markdown
+- feat(scope): description (#PR_number)
+- fix(ext/node): specific fix details (#PR_number)
+```
+
+**Scope examples:**
+- `(cli)` - CLI-related changes
+- `(ext/node)` - Node.js compatibility layer
+- `(ext/fetch)` - Fetch API implementation
+- `(lsp)` - Language server protocol
+- `(compile)` - Deno compile command
+
+## Release Communication
+
+### Blog Posts
+
+Major releases (minor versions) typically include:
+
+- Detailed blog post at `http://deno.com/blog/`
+- Feature highlights and examples
+- Migration guides for breaking changes
+- Performance benchmarks
+
+**Example:** Version 2.7.0 blog post at `http://deno.com/blog/v2.7`
+
+### Announcements
+
+Releases are announced on:
+
+<CardGroup cols={2}>
+  <Card title="Twitter/X" icon="twitter">
+    [@deno_land](https://twitter.com/deno_land) announces all releases
+  </Card>
+
+  <Card title="Bluesky" icon="cloud">
+    [deno.land](https://bsky.app/profile/deno.land) for social updates
+  </Card>
+
+  <Card title="Discord" icon="discord">
+    [Discord server](https://discord.gg/deno) announcements channel
+  </Card>
+
+  <Card title="YouTube" icon="youtube">
+    [@deno_land](https://www.youtube.com/@deno_land) for video updates
+  </Card>
+</CardGroup>
+
+## Platform Support
+
+Each release includes binaries for:
+
+### Supported Platforms
+
+- **macOS** - x64 (Intel), ARM64 (Apple Silicon)
+- **Linux** - x64, ARM64
+- **Windows** - x64, ARM64 (as of 2.6.8+)
+
+### Binary Naming Convention
+
+```
+deno-{arch}-{platform}.zip
+
+Examples:
+- deno-x86_64-unknown-linux-gnu.zip
+- deno-x86_64-apple-darwin.zip
+- deno-aarch64-apple-darwin.zip
+- deno-x86_64-pc-windows-msvc.zip
+```
+
+## Release Quality Assurance
+
+### Testing Before Release
+
+Before a release is published, the code goes through:
+
+<Steps>
+  <Step title="Unit Tests">
+    All Rust and JavaScript unit tests must pass:
+    ```bash
+    cargo test
+    ```
+  </Step>
+
+  <Step title="Integration Tests">
+    Spec tests validate CLI behavior:
+    ```bash
+    cargo test specs
+    ```
+  </Step>
+
+  <Step title="Web Platform Tests">
+    WPT suite ensures web standards compliance:
+    ```bash
+    cargo test wpt
+    ```
+  </Step>
+
+  <Step title="Compatibility Tests">
+    Node.js compatibility tests verify ecosystem integration.
+  </Step>
+
+  <Step title="CI Pipeline">
+    Continuous integration runs on:
+    - Multiple platforms (Linux, macOS, Windows)
+    - Multiple architectures (x64, ARM64)
+    - Various configurations
+  </Step>
+</Steps>
+
+## Breaking Changes
+
+Breaking changes are clearly marked in release notes:
+
+```markdown
+- feat(BREAKING/install): require `--` for script arg (#31292)
+```
+
+Major version bumps (e.g., 1.x to 2.x) may include:
+- API changes
+- Removed deprecated features
+- Default behavior changes
+- Migration guides in documentation
+
+## Contributing to Releases
+
+### How Your Changes Get Released
+
+<Steps>
+  <Step title="Submit PR">
+    Your pull request is reviewed and merged into the `main` branch.
+  </Step>
+
+  <Step title="Included in next release">
+    Merged changes are automatically included in the next release.
+  </Step>
+
+  <Step title="Release notes">
+    Your PR appears in `Releases.md` with the format:
+    ```
+    - {type}({scope}): {description} (#{pr_number})
+    ```
+  </Step>
+
+  <Step title="Published">
+    The release is published with binaries and announcements.
+  </Step>
+</Steps>
+
+### Release Timeline
+
+From merge to release:
+
+1. **Merge to main** - Your PR is merged
+2. **Canary builds** - Available immediately in daily canary
+3. **Next stable** - Included in next minor/patch release (typically within 1-2 weeks)
+4. **Release notes** - Listed in `Releases.md`
+
+## Checking Release Information
+
+### Current Version
+
+Check your installed Deno version:
+
+```bash
+deno --version
+```
+
+Output:
+```
+deno 2.7.0 (release, x86_64-unknown-linux-gnu)
+v8 14.5.0
+typescript 5.9.2
+```
+
+### Release History
+
+View the complete release history:
+
+```bash
+# View online
+open https://github.com/denoland/deno/releases
+
+# Or check Releases.md in the repository
+cat Releases.md | less
+```
+
+### Latest Version Check
+
+Check if a newer version is available:
+
+```bash
+deno upgrade --dry-run
+```
+
+## Additional Resources
+
+<CardGroup cols={2}>
+  <Card title="Release Downloads" icon="download">
+    [GitHub Releases](https://github.com/denoland/deno/releases)
+  </Card>
+
+  <Card title="Install Scripts" icon="terminal">
+    [deno_install](https://github.com/denoland/deno_install)
+  </Card>
+
+  <Card title="Release Blog" icon="newspaper">
+    [Deno Blog](http://deno.com/blog)
+  </Card>
+
+  <Card title="Release Notes" icon="file-lines">
+    [Releases.md](https://github.com/denoland/deno/blob/main/Releases.md)
+  </Card>
+</CardGroup>

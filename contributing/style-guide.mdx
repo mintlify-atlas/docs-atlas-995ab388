@@ -1,0 +1,299 @@
+---
+title: Code Style Guide
+description: Code formatting, linting, and style conventions for Deno contributions
+---
+
+This guide covers the code style conventions and formatting requirements for contributing to the Deno project.
+
+## Code Formatting
+
+Deno uses automated tools to ensure consistent code formatting across the entire codebase.
+
+### Running Formatters
+
+Before committing any code, you must run the formatter:
+
+```bash
+./tools/format.js
+```
+
+For combined formatting and linting:
+
+```bash
+./tools/format.js && ./tools/lint.js
+```
+
+## Linting
+
+All code must pass linting checks before being committed.
+
+### JavaScript/TypeScript Linting
+
+If you only changed non-Rust code:
+
+```bash
+./tools/lint.js --js
+```
+
+### Rust Linting
+
+If you changed Rust code:
+
+```bash
+./tools/lint.js
+```
+
+Fix any lint errors before committing your changes.
+
+## Rust Code Style
+
+### Formatting Configuration
+
+Rust code follows the configuration in `.rustfmt.toml`:
+
+- **Max width**: 80 characters
+- **Tab spaces**: 2
+- **Edition**: 2024
+- **Import grouping**: `StdExternalCrate`
+- **Import granularity**: `item`
+
+### Common Patterns
+
+#### Ops (Operations)
+
+Rust functions exposed to JavaScript are called "ops" and are located in `ext/` directories:
+
+```rust
+#[op2]
+fn op_example(#[string] input: String) -> Result<String, AnyError> {
+  // Implementation
+  Ok(input.to_uppercase())
+}
+```
+
+#### Error Handling
+
+Use `eprintln!` for debug output and avoid unwrap() in production code:
+
+```rust
+// Debug printing
+eprintln!("Debug: {:?}", some_variable);
+dbg!(some_variable);
+
+// Prefer proper error handling over unwrap()
+let value = some_function().map_err(|e| {
+  custom_error("ContextMessage", e.to_string())
+})?;
+```
+
+#### Resource Management
+
+Resources are managed objects passed between Rust and JavaScript:
+
+```rust
+struct FileResource {
+  // Resource fields
+}
+
+impl Resource for FileResource {
+  fn name(&self) -> Cow<str> {
+    "file".into()
+  }
+}
+```
+
+## TypeScript/JavaScript Code Style
+
+### Configuration
+
+TypeScript and JavaScript code follows dprint configuration with Deno defaults:
+
+- **Deno mode**: enabled
+- **Consistent formatting** across the codebase
+
+### Runtime Code Conventions
+
+For JavaScript code in the runtime:
+
+```javascript
+// Use console.log for debug output
+console.log("Debug:", value);
+
+// Follow Deno API patterns
+const result = await Deno.readTextFile(path);
+```
+
+## File Formatting
+
+### General Rules
+
+As specified in `.editorconfig`:
+
+- **End of line**: LF (Unix-style)
+- **Insert final newline**: true
+- **Indent style**: spaces
+- **Indent size**: 2 spaces
+- **Charset**: UTF-8
+- **Trim trailing whitespace**: true
+
+### Special Cases
+
+- `.out` files (test expectations) are editor-neutral and may not follow standard formatting
+- Node compatibility tests may have different formatting requirements
+
+## Directory Structure Conventions
+
+### Key Directories
+
+<AccordionGroup>
+  <Accordion title="cli/" icon="terminal">
+    User-facing CLI implementation, subcommands, and tools.
+    
+    - `cli/args/flags.rs` - CLI flag parsing and structure
+    - `cli/tools/<tool>/` - Individual tool implementations
+    - `cli/main.rs` - Entry point and command routing
+  </Accordion>
+
+  <Accordion title="runtime/" icon="code">
+    JavaScript runtime assembly and integration.
+    
+    - `runtime/worker.rs` - Worker/runtime initialization
+    - `runtime/permissions.rs` - Permission system
+  </Accordion>
+
+  <Accordion title="ext/" icon="puzzle-piece">
+    Extensions providing native functionality to JavaScript.
+    
+    Each extension contains:
+    - Rust ops (operations)
+    - JavaScript APIs
+    - Extension-specific tests
+  </Accordion>
+
+  <Accordion title="tests/" icon="flask">
+    Test suite organization:
+    
+    - `tests/specs/` - Integration spec tests
+    - `tests/unit/` - Unit tests
+    - `tests/testdata/` - Test fixtures and data files
+    - `tests/wpt/` - Web Platform Tests
+  </Accordion>
+</AccordionGroup>
+
+## Naming Conventions
+
+### Files and Directories
+
+- Use **snake_case** for Rust files: `module_loader.rs`
+- Use **kebab-case** for directories when descriptive: `worker-threads`
+- Use **lowercase** for spec test directories: `tests/specs/my_feature/`
+
+### Code Identifiers
+
+**Rust:**
+- Functions and variables: `snake_case`
+- Types and traits: `PascalCase`
+- Constants: `SCREAMING_SNAKE_CASE`
+
+**TypeScript/JavaScript:**
+- Functions and variables: `camelCase`
+- Classes and interfaces: `PascalCase`
+- Constants: `SCREAMING_SNAKE_CASE` or `camelCase`
+
+## Comment Style
+
+### Rust Comments
+
+```rust
+/// Documentation comment for public items.
+/// Use markdown formatting.
+pub fn public_function() {}
+
+// Regular comment for implementation details
+fn internal_function() {
+  // Inline comments explain non-obvious code
+  let value = complex_operation(); // End-of-line comment
+}
+```
+
+### TypeScript Comments
+
+```typescript
+/**
+ * JSDoc comment for public APIs.
+ * @param input - Description of parameter
+ * @returns Description of return value
+ */
+export function publicAPI(input: string): string {
+  // Implementation comment
+  return input.toUpperCase();
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Keep Changes Minimal" icon="minimize">
+    Don't do drive-by changes in a PR. If you need to make a change that is not directly related to the PR, create a separate PR for it.
+  </Card>
+
+  <Card title="Clear Code Organization" icon="folder-tree">
+    Follow the established directory structure. Place new features in appropriate locations based on existing patterns.
+  </Card>
+
+  <Card title="Use Examples" icon="book">
+    When adding new functionality, look at similar existing code:
+    - CLI flags: `cli/args/flags.rs`
+    - Ops: relevant `ext/` directories
+    - Tools: `cli/tools/`
+  </Card>
+
+  <Card title="Document Patterns" icon="file-lines">
+    Follow established patterns for:
+    - Ops in extensions
+    - Workers and execution contexts
+    - Resource management
+    - Permission checks
+  </Card>
+</CardGroup>
+
+## Pre-Commit Checklist
+
+<Steps>
+  <Step title="Run the formatter">
+    ```bash
+    ./tools/format.js
+    ```
+  </Step>
+
+  <Step title="Run the linter">
+    For Rust changes:
+    ```bash
+    ./tools/lint.js
+    ```
+    
+    For JavaScript/TypeScript only:
+    ```bash
+    ./tools/lint.js --js
+    ```
+  </Step>
+
+  <Step title="Verify code compiles">
+    ```bash
+    cargo check
+    ```
+  </Step>
+
+  <Step title="Run relevant tests">
+    ```bash
+    cargo test <test_name>
+    ```
+  </Step>
+</Steps>
+
+## Additional Resources
+
+- **EditorConfig**: `.editorconfig` defines cross-editor formatting rules
+- **Dprint Config**: `.dprint.json` configures JavaScript/TypeScript/Markdown formatting
+- **Rustfmt Config**: `.rustfmt.toml` configures Rust formatting
+- **Dlint Config**: `.dlint.json` configures JavaScript/TypeScript linting

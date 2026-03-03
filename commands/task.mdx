@@ -1,0 +1,128 @@
+---
+title: deno task
+description: Run tasks defined in the configuration file
+---
+
+The `deno task` command runs tasks defined in the `tasks` field of your `deno.json` or `deno.jsonc` configuration file.
+
+## Usage
+
+```bash
+deno task [OPTIONS] [TASK_NAME] [-- ARGS...]
+```
+
+## Description
+
+Tasks provide a way to define custom scripts that can be run with a simple command. They are useful for automating common development workflows, such as running tests, building code, or starting a development server.
+
+Without a task name, this command lists all available tasks defined in the configuration file.
+
+## Options
+
+<ParamField path="TASK_NAME" type="string">
+  The name of the task to run. If omitted, lists all available tasks.
+</ParamField>
+
+<ParamField path="--cwd" type="string">
+  Specify the directory to use as the current working directory for the task.
+</ParamField>
+
+<ParamField path="--filter" type="string">
+  Filter tasks by package name in a workspace. Supports glob patterns.
+</ParamField>
+
+<ParamField path="--recursive" type="boolean" default="false">
+  Run the task recursively in all workspace packages.
+</ParamField>
+
+<ParamField path="--eval" type="boolean" default="false">
+  Evaluate the task argument as a shell command rather than looking up a named task.
+</ParamField>
+
+<ParamField path="ARGS" type="string[]">
+  Additional arguments to pass to the task script (after `--`).
+</ParamField>
+
+## Examples
+
+### List all available tasks
+
+```bash
+deno task
+```
+
+### Run a specific task
+
+```bash
+deno task dev
+```
+
+### Run a task with arguments
+
+```bash
+deno task build -- --minify
+```
+
+### Run a task in a specific directory
+
+```bash
+deno task --cwd=./packages/foo test
+```
+
+### Run task in filtered packages
+
+```bash
+deno task --filter="@myorg/*" test
+```
+
+### Run task recursively in workspace
+
+```bash
+deno task --recursive build
+```
+
+## Task Definition
+
+Tasks are defined in the `tasks` field of your `deno.json`:
+
+```json
+{
+  "tasks": {
+    "dev": "deno run --watch main.ts",
+    "test": "deno test --allow-all",
+    "build": {
+      "command": "deno run --allow-read --allow-write build.ts",
+      "description": "Build the project",
+      "dependencies": ["test"]
+    }
+  }
+}
+```
+
+## Task Dependencies
+
+Tasks can depend on other tasks. When a task has dependencies, those tasks will run first:
+
+```json
+{
+  "tasks": {
+    "test": "deno test",
+    "build": {
+      "command": "deno run build.ts",
+      "dependencies": ["test"]
+    }
+  }
+}
+```
+
+Running `deno task build` will first run `deno task test`, then run the build task.
+
+## Environment Variables
+
+<ParamField path="DENO_JOBS" type="number">
+  Number of concurrent tasks to run (default: number of CPUs).
+</ParamField>
+
+<ParamField path="DENO_INTERNAL_TASK_USE_PKG_JSON" type="boolean">
+  Internal: Force using package.json scripts instead of deno.json tasks.
+</ParamField>

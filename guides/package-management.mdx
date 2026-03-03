@@ -1,0 +1,416 @@
+---
+title: Package Management with JSR and npm
+description: Learn how to manage dependencies in Deno using JSR (JavaScript Registry) and npm packages, including installation, versioning, and lock files.
+---
+
+Deno uses a modern approach to package management, supporting both JSR (JavaScript Registry) and npm packages without requiring a separate package manager installation.
+
+## JSR - JavaScript Registry
+
+JSR is the recommended package registry for Deno. It's designed specifically for TypeScript and provides better type information and documentation.
+
+### Installing JSR Packages
+
+Add JSR packages to your `deno.json`:
+
+```json deno.json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "@std/async": "jsr:@std/async@^1.0.0",
+    "@std/path": "jsr:@std/path@^1.0.0"
+  }
+}
+```
+
+Then import in your code:
+
+```typescript
+import { assertEquals } from "@std/assert";
+import { delay } from "@std/async";
+import { join } from "@std/path";
+```
+
+### Direct JSR Imports
+
+You can also import directly without configuration:
+
+```typescript
+import { assertEquals } from "jsr:@std/assert@^1.0.0";
+```
+
+### Using the deno add Command
+
+The easiest way to add packages is using `deno add`:
+
+```bash
+# Add a JSR package
+deno add @std/assert
+
+# Add a specific version
+deno add @std/assert@1.0.0
+
+# Add multiple packages
+deno add @std/assert @std/async @std/path
+```
+
+This automatically updates your `deno.json` with the package.
+
+## npm Packages
+
+Deno has native support for npm packages with no additional setup required.
+
+### Installing npm Packages
+
+Add npm packages to your `deno.json`:
+
+```json deno.json
+{
+  "imports": {
+    "express": "npm:express@^4.18.2",
+    "chalk": "npm:chalk@^5.3.0",
+    "zod": "npm:zod@^3.22.0"
+  }
+}
+```
+
+### Using deno add for npm
+
+```bash
+# Add an npm package
+deno add npm:express
+
+# Add with specific version
+deno add npm:chalk@5.3.0
+
+# Add with version range
+deno add npm:zod@^3.22.0
+```
+
+### Direct npm Imports
+
+```typescript
+import express from "npm:express@^4.18.2";
+import chalk from "npm:chalk@^5.3.0";
+```
+
+## Lock Files
+
+Deno uses a `deno.lock` file to ensure consistent dependency resolution across environments.
+
+### Enabling Lock Files
+
+Lock files are enabled by default. Configure in `deno.json`:
+
+```json deno.json
+{
+  "lock": true
+}
+```
+
+Or with custom path:
+
+```json deno.json
+{
+  "lock": {
+    "path": "./deno.lock",
+    "frozen": false
+  }
+}
+```
+
+### Frozen Lock File
+
+In CI/CD environments, use frozen mode to ensure the lock file is up to date:
+
+```json deno.json
+{
+  "lock": {
+    "frozen": true
+  }
+}
+```
+
+Or via command line:
+
+```bash
+deno run --frozen=true main.ts
+```
+
+### Updating the Lock File
+
+The lock file updates automatically when you add or update dependencies:
+
+```bash
+# Add new dependency (updates lock automatically)
+deno add @std/assert
+
+# Update all dependencies
+deno cache --reload main.ts
+```
+
+## Node Modules Directory
+
+Deno can optionally create a `node_modules` directory for better npm compatibility.
+
+### Configuration
+
+```json deno.json
+{
+  "nodeModulesDir": "auto"
+}
+```
+
+Modes:
+- `"auto"` - Create node_modules automatically when npm packages are used
+- `"manual"` - Only use node_modules if it exists
+- `"none"` - Never use node_modules (default)
+
+### When to Use node_modules
+
+<CardGroup cols={2}>
+  <Card title="Use node_modules when" icon="check">
+    - Working with tools that expect node_modules
+    - Need better IDE integration for npm packages
+    - Debugging npm package issues
+  </Card>
+  
+  <Card title="Avoid node_modules when" icon="xmark">
+    - Using primarily JSR packages
+    - Want faster installation
+    - Prefer Deno's global cache
+  </Card>
+</CardGroup>
+
+## Dependency Caching
+
+Deno caches dependencies globally by default.
+
+### Cache Location
+
+```bash
+# View cache directory
+deno info
+
+# Cache dependencies
+deno cache main.ts
+
+# Force reload cache
+deno cache --reload main.ts
+
+# Reload specific package
+deno cache --reload=npm:express main.ts
+```
+
+### Cache Directory
+
+By default, Deno caches to:
+- Linux/Mac: `~/.cache/deno`
+- Windows: `%LOCALAPPDATA%\deno`
+
+Override with the `DENO_DIR` environment variable:
+
+```bash
+export DENO_DIR=/custom/cache/path
+deno run main.ts
+```
+
+## Vendoring Dependencies
+
+Vendor dependencies to commit them to your repository:
+
+```bash
+# Enable vendoring
+deno cache --vendor main.ts
+```
+
+Configure in `deno.json`:
+
+```json deno.json
+{
+  "vendor": true
+}
+```
+
+This creates a `vendor` directory with all dependencies.
+
+## Version Management
+
+### Semantic Versioning
+
+```json deno.json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",    // Latest 1.x
+    "@std/async": "jsr:@std/async@~1.0.0",      // Latest 1.0.x
+    "@std/path": "jsr:@std/path@1.0.0"          // Exact version
+  }
+}
+```
+
+### Updating Dependencies
+
+```bash
+# Check for outdated dependencies
+deno outdated
+
+# Update to latest compatible versions
+deno outdated --update
+
+# Update specific package
+deno add @std/assert@latest
+```
+
+## Workspaces
+
+Manage multiple packages in a monorepo:
+
+```json deno.json
+{
+  "workspace": ["./packages/*", "./apps/*"]
+}
+```
+
+Each workspace member has its own `deno.json`:
+
+```
+project/
+├── deno.json
+├── packages/
+│   ├── utils/
+│   │   └── deno.json
+│   └── core/
+│       └── deno.json
+└── apps/
+    └── web/
+        └── deno.json
+```
+
+## Publishing to JSR
+
+<Steps>
+  <Step title="Prepare your package">
+    Create a `deno.json` with package metadata:
+    
+    ```json deno.json
+    {
+      "name": "@scope/package-name",
+      "version": "1.0.0",
+      "exports": "./mod.ts",
+      "publish": {
+        "include": ["mod.ts", "lib/", "README.md"],
+        "exclude": ["**/*_test.ts"]
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Test publishing">
+    ```bash
+    deno publish --dry-run
+    ```
+  </Step>
+  
+  <Step title="Publish">
+    ```bash
+    deno publish
+    ```
+  </Step>
+</Steps>
+
+## Minimum Dependency Age
+
+Protect against supply chain attacks by requiring a minimum age for dependencies:
+
+```json deno.json
+{
+  "minimumDependencyAge": "2d"
+}
+```
+
+Or with exclusions:
+
+```json deno.json
+{
+  "minimumDependencyAge": {
+    "age": "P2D",
+    "exclude": ["npm:@myorg/*", "jsr:@trusted/*"]
+  }
+}
+```
+
+Formats:
+- Minutes: `"120"` (120 minutes)
+- ISO-8601 duration: `"P2D"` (2 days)
+- RFC3339 date: `"2025-09-16"`
+- RFC3339 timestamp: `"2025-09-16T12:00:00+00:00"`
+
+## npm Lifecycle Scripts
+
+Control whether npm packages can run lifecycle scripts:
+
+```json deno.json
+{
+  "allowScripts": false
+}
+```
+
+Or allow specific packages:
+
+```json deno.json
+{
+  "allowScripts": {
+    "allow": ["npm:puppeteer", "npm:esbuild"],
+    "deny": ["npm:suspicious-package"]
+  }
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Prefer JSR over npm">
+    Use JSR packages when available for better TypeScript support and documentation.
+  </Accordion>
+  
+  <Accordion title="Pin versions in production">
+    Use exact versions in production environments:
+    ```json
+    "@std/assert": "jsr:@std/assert@1.0.8"
+    ```
+  </Accordion>
+  
+  <Accordion title="Use lock files">
+    Always commit your `deno.lock` file to ensure consistent dependencies.
+  </Accordion>
+  
+  <Accordion title="Cache dependencies in CI">
+    ```bash
+    deno cache main.ts
+    deno test
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Example: Full Package Configuration
+
+```json deno.json
+{
+  "name": "@myorg/myapp",
+  "version": "1.0.0",
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "@std/async": "jsr:@std/async@^1.0.0",
+    "express": "npm:express@^4.18.2",
+    "@/": "./src/"
+  },
+  "lock": {
+    "frozen": true
+  },
+  "nodeModulesDir": "auto",
+  "minimumDependencyAge": "2d",
+  "allowScripts": {
+    "allow": ["npm:esbuild"]
+  }
+}
+```

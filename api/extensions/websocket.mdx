@@ -1,0 +1,390 @@
+---
+title: WebSocket Extension (deno_websocket)
+description: WebSocket client and server implementation for bidirectional communication
+---
+
+The `deno_websocket` extension provides WebSocket client and server functionality, enabling real-time bidirectional communication over TCP connections.
+
+## Location
+
+`ext/websocket/`
+
+## What It Provides
+
+### WebSocket Client
+
+Create WebSocket connections:
+
+```javascript
+// Connect to WebSocket server
+const ws = new WebSocket("wss://echo.websocket.org");
+
+ws.onopen = () => {
+  console.log("Connected");
+  ws.send("Hello, Server!");
+};
+
+ws.onmessage = (event) => {
+  console.log("Received:", event.data);
+};
+
+ws.onerror = (error) => {
+  console.error("WebSocket error:", error);
+};
+
+ws.onclose = (event) => {
+  console.log(`Closed: ${event.code} ${event.reason}`);
+};
+
+// Send different data types
+ws.send("text message");
+ws.send(new Uint8Array([1, 2, 3]));
+ws.send(new Blob(["data"]));
+
+// Close connection
+ws.close(1000, "Normal closure");
+```
+
+### Custom Headers
+
+Send custom headers during handshake:
+
+```javascript
+const ws = new WebSocket("wss://example.com", {
+  headers: {
+    "Authorization": "Bearer token123",
+    "X-Custom-Header": "value",
+  },
+});
+```
+
+### Subprotocols
+
+Negotiate WebSocket subprotocols:
+
+```javascript
+const ws = new WebSocket("wss://example.com", ["chat", "superchat"]);
+
+ws.onopen = () => {
+  console.log("Selected protocol:", ws.protocol);
+};
+```
+
+### Binary Data
+
+Handle binary messages:
+
+```javascript
+const ws = new WebSocket("wss://example.com");
+ws.binaryType = "arraybuffer"; // or "blob"
+
+ws.onmessage = (event) => {
+  if (typeof event.data === "string") {
+    console.log("Text:", event.data);
+  } else if (event.data instanceof ArrayBuffer) {
+    console.log("Binary:", new Uint8Array(event.data));
+  }
+};
+```
+
+### WebSocketStream
+
+Streams-based WebSocket API:
+
+```javascript
+const { readable, writable, extensions, protocol } = 
+  await new WebSocketStream("wss://example.com");
+
+// Read messages
+const reader = readable.getReader();
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  console.log("Received:", value);
+}
+
+// Write messages
+const writer = writable.getWriter();
+await writer.write("Hello");
+await writer.close();
+```
+
+### Server-Side WebSocket
+
+Upgrade HTTP connections to WebSocket:
+
+```javascript
+Deno.serve((req) => {
+  if (req.headers.get("upgrade") !== "websocket") {
+    return new Response("Not a WebSocket request", { status: 400 });
+  }
+
+  const { socket, response } = Deno.upgradeWebSocket(req);
+
+  socket.onopen = () => {
+    console.log("Client connected");
+  };
+
+  socket.onmessage = (event) => {
+    console.log("Received:", event.data);
+    socket.send(`Echo: ${event.data}`);
+  };
+
+  socket.onclose = () => {
+    console.log("Client disconnected");
+  };
+
+  return response;
+});
+```
+
+## Protocol Support
+
+### HTTP/1.1 WebSocket
+
+Standard WebSocket upgrade:
+
+```javascript
+const ws = new WebSocket("ws://localhost:8080");
+```
+
+### HTTP/2 WebSocket
+
+WebSocket over HTTP/2:
+
+```javascript
+const ws = new WebSocket("wss://http2-server.example.com");
+// Automatically uses HTTP/2 if server supports it
+```
+
+### TLS/SSL
+
+Secure WebSocket connections:
+
+```javascript
+const ws = new WebSocket("wss://secure.example.com", {
+  // Custom CA certificates
+  caCerts: [await Deno.readTextFile("./ca.pem")],
+});
+```
+
+## Key Operations
+
+Rust operations exposed to JavaScript:
+
+```rust
+op_ws_check_permission_and_cancel_handle // Permission check
+op_ws_create                            // Create WebSocket connection
+op_ws_send_text                         // Send text message
+op_ws_send_binary                       // Send binary message
+op_ws_send_ping                         // Send ping frame
+op_ws_next_event                        // Wait for next message
+op_ws_close                             // Close connection
+op_ws_get_buffer                        // Get received binary data
+op_ws_get_buffer_as_string             // Get received text data
+```
+
+## Implementation Details
+
+### Extension Definition
+
+```rust:ext/websocket/lib.rs
+deno_core::extension!(
+  deno_websocket,
+  deps = [deno_web, deno_webidl],
+  ops = [
+    op_ws_check_permission_and_cancel_handle,
+    op_ws_create,
+    op_ws_send_binary,
+    op_ws_send_text,
+    op_ws_send_ping,
+    op_ws_next_event,
+    op_ws_close,
+    op_ws_get_buffer,
+    op_ws_get_buffer_as_string,
+    op_ws_get_error,
+    op_ws_get_buffered_amount,
+  ],
+  esm = ["01_websocket.js", "02_websocketstream.js"],
+);
+```
+
+### Handshake Process
+
+#### HTTP/1.1 Handshake
+
+```rust
+async fn handshake_http1(
+  client: Client,
+  uri: Uri,
+  protocols: &str,
+  headers: &Option<Vec<(ByteString, ByteString)>>,
+) -> Result<(WebSocket<WebSocketStream>, HeaderMap), HandshakeError> {
+  // 1. Create TCP connection
+  // 2. Send upgrade request with Sec-WebSocket-Key
+  // 3. Verify Sec-WebSocket-Accept response
+  // 4. Return WebSocket instance
+}
+```
+
+#### HTTP/2 Handshake
+
+```rust
+async fn handshake_http2(
+  client: Client,
+  uri: Uri,
+  protocols: &str,
+) -> Result<(WebSocket<WebSocketStream>, HeaderMap), HandshakeError> {
+  // 1. Create HTTP/2 connection
+  // 2. Send CONNECT request with :protocol = websocket
+  // 3. Receive 200 OK
+  // 4. Use bidirectional stream as WebSocket
+}
+```
+
+### Message Types
+
+```rust
+pub enum MessageKind {
+  Text = 0,
+  Binary = 1,
+  Pong = 2,
+  Error = 3,
+  ClosedDefault = 1005,
+}
+```
+
+### Resource Management
+
+```rust
+pub struct ServerWebSocket {
+  buffered: Cell<usize>,
+  error: Cell<Option<String>>,
+  ws_read: AsyncRefCell<FragmentCollectorRead<ReadHalf<WebSocketStream>>>,
+  ws_write: AsyncRefCell<WebSocketWrite<WriteHalf<WebSocketStream>>>,
+}
+```
+
+### Frame Handling
+
+Uses `fastwebsockets` crate:
+
+- Text frames
+- Binary frames
+- Ping/Pong frames
+- Close frames with status codes
+- Fragmented messages (automatic assembly)
+
+### Backpressure
+
+Monitors buffered amount:
+
+```javascript
+ws.onopen = () => {
+  const interval = setInterval(() => {
+    if (ws.bufferedAmount === 0) {
+      ws.send("data");
+    }
+  }, 100);
+  
+  ws.onclose = () => clearInterval(interval);
+};
+```
+
+## Performance Features
+
+### Vectored Writes
+
+Optimized message sending:
+
+```rust
+ws.set_writev(true); // Enable vectored I/O
+```
+
+### Auto-masking
+
+Client-side frame masking:
+
+```rust
+ws.set_auto_apply_mask(true);
+```
+
+### Automatic Ping/Pong
+
+Keep-alive mechanism:
+
+```rust
+ws.set_auto_pong(true);
+```
+
+### Fragment Collection
+
+Automatic message reassembly:
+
+```rust
+FragmentCollectorRead::new(ws_read)
+```
+
+## Close Codes
+
+Standard WebSocket close codes:
+
+```javascript
+ws.close(1000); // Normal closure
+ws.close(1001); // Going away
+ws.close(1002); // Protocol error
+ws.close(1003); // Unsupported data
+ws.close(1006); // Abnormal closure
+ws.close(1007); // Invalid frame payload
+ws.close(1008); // Policy violation
+ws.close(1009); // Message too big
+ws.close(1010); // Mandatory extension
+ws.close(1011); // Internal server error
+ws.close(1015); // TLS handshake failure
+```
+
+## Error Handling
+
+```javascript
+const ws = new WebSocket("wss://example.com");
+
+ws.onerror = (event) => {
+  console.error("WebSocket error:", event);
+};
+
+ws.onclose = (event) => {
+  if (!event.wasClean) {
+    console.error(`Connection died: ${event.code}`);
+  }
+};
+
+try {
+  ws.send("message");
+} catch (err) {
+  console.error("Failed to send:", err);
+}
+```
+
+## File Structure
+
+```
+ext/websocket/
+├── lib.rs              # Extension definition and handshake
+├── stream.rs           # WebSocket stream implementation
+├── 01_websocket.js     # WebSocket API
+└── 02_websocketstream.js # WebSocketStream API
+```
+
+## Standards Compliance
+
+Implements:
+
+- [RFC 6455](https://tools.ietf.org/html/rfc6455) - WebSocket Protocol
+- [WebSocket API](https://websockets.spec.whatwg.org/)
+- [WebSocketStream](https://github.com/ricea/websocketstream-explainer)
+
+## See Also
+
+- [Fetch Extension](/api/extensions/fetch) - HTTP client
+- [HTTP Extension](/api/extensions/http) - HTTP server
+- [Web Extension](/api/extensions/web) - Base types and streams

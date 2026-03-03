@@ -1,0 +1,116 @@
+---
+title: "Deno Standard Library"
+description: "A comprehensive collection of high-quality, audited modules for Deno applications"
+---
+
+## What is the Deno Standard Library?
+
+The Deno Standard Library is a collection of high-quality, officially supported common utilities for Deno programs. Published on [JSR](https://jsr.io/@std), the standard library provides essential functionality that you can trust and depend on for building robust applications.
+
+<Info>
+  The standard library is available at [jsr.io/@std](https://jsr.io/@std) and can be imported directly into your Deno projects.
+</Info>
+
+## Key Features
+
+<CardGroup cols={2}>
+
+<Card title="Audited & Maintained" icon="shield-check">
+  All modules are carefully reviewed and maintained by the Deno core team to ensure quality and security.
+</Card>
+
+<Card title="Modern JavaScript" icon="js">
+  Built with modern JavaScript and TypeScript, leveraging web standards and best practices.
+</Card>
+
+<Card title="Zero Dependencies" icon="circle-nodes">
+  Standard library modules have minimal external dependencies, reducing supply chain risks.
+</Card>
+
+<Card title="Well Documented" icon="book">
+  Comprehensive documentation and examples for every module and function.
+</Card>
+
+</CardGroup>
+
+## Available Modules
+
+The Deno Standard Library includes modules for common programming tasks:
+
+### Data Structures & Algorithms
+- **collections**: Utilities for working with arrays, objects, and other data structures
+- **encoding**: Encoding and decoding for various formats (base64, hex, csv, json, yaml, etc.)
+- **data-structures**: Common data structures like binary heaps and red-black trees
+
+### System & I/O
+- **fs**: File system utilities for reading, writing, and manipulating files
+- **path**: Cross-platform path manipulation utilities
+- **io**: Low-level I/O primitives and utilities
+- **streams**: Utilities for working with web streams
+
+### Text & Formatting
+- **fmt**: Formatting utilities including colors and printf-style formatting
+- **regexp**: Regular expression utilities and helpers
+- **front-matter**: Parse front matter from markdown files
+
+### Network & Web
+- **http**: HTTP server utilities and helpers
+- **ws**: WebSocket implementation
+- **url**: URL parsing and manipulation utilities
+
+### Testing & Quality
+- **testing**: Testing utilities and assertion functions
+- **expect**: BDD-style assertion library
+- **mock**: Mocking utilities for testing
+
+### Utilities
+- **async**: Async utilities like debounce, delay, and pooling
+- **datetime**: Date and time manipulation utilities
+- **uuid**: UUID generation and validation
+- **semver**: Semantic versioning utilities
+- **crypto**: Cryptographic utilities
+
+<Note>
+  Visit [jsr.io/@std](https://jsr.io/@std) for the complete list of available modules and their documentation.
+</Note>
+
+## Design Principles
+
+The Deno Standard Library follows these core principles:
+
+1. **Stability**: APIs are carefully designed and changes follow semantic versioning
+2. **Quality**: All code is thoroughly tested and reviewed
+3. **Simplicity**: Simple, focused modules that do one thing well
+4. **Web Standards**: Prefer web platform APIs when available
+5. **Type Safety**: Full TypeScript support with comprehensive type definitions
+
+## Version Stability
+
+Each module in the standard library is independently versioned, allowing you to:
+
+- Use different versions of different modules in the same project
+- Upgrade modules incrementally without breaking your application
+- Pin to specific versions for maximum stability
+
+<Tip>
+  Standard library modules follow semantic versioning. Major version updates may include breaking changes, while minor and patch versions maintain backward compatibility.
+</Tip>
+
+## Getting Started
+
+To start using the Deno Standard Library in your project:
+
+```typescript
+// Import from JSR using the @std namespace
+import { assertEquals } from "@std/assert";
+import { join } from "@std/path";
+import { parse } from "@std/flags";
+
+// Use the imported functions
+const filePath = join("src", "main.ts");
+console.log(filePath); // "src/main.ts"
+```
+
+<Card title="Next Steps" icon="arrow-right" href="/stdlib/using-stdlib">
+  Learn how to use standard library modules in your Deno projects
+</Card>

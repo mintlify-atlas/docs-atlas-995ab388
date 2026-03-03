@@ -1,0 +1,584 @@
+---
+title: Debugging
+description: Techniques for debugging Deno code
+---
+
+This guide covers various techniques for debugging Deno's Rust code, JavaScript runtime, and tests.
+
+## Debugging Rust Code
+
+### Using an IDE Debugger
+
+The recommended approach for debugging Rust code is using your IDE's built-in debugger.
+
+<Tabs>
+  <Tab title="VS Code">
+    **Setup:**
+    
+    1. Install the [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) extension
+    2. Install the [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb) extension
+    
+    **Create `.vscode/launch.json`:**
+    ```json
+    {
+      "version": "0.2.0",
+      "configurations": [
+        {
+          "type": "lldb",
+          "request": "launch",
+          "name": "Debug Deno",
+          "cargo": {
+            "args": [
+              "build",
+              "--bin=deno",
+              "--package=deno"
+            ],
+            "filter": {
+              "name": "deno",
+              "kind": "bin"
+            }
+          },
+          "args": ["run", "--allow-all", "test.ts"],
+          "cwd": "${workspaceFolder}"
+        }
+      ]
+    }
+    ```
+    
+    **Usage:**
+    1. Set breakpoints in Rust code by clicking in the gutter
+    2. Press F5 to start debugging
+    3. Use standard debugging controls (step, continue, etc.)
+  </Tab>
+  
+  <Tab title="IntelliJ IDEA / CLion">
+    **Setup:**
+    
+    1. Install the Rust plugin
+    2. Open the project
+    3. IntelliJ will automatically detect the Cargo project
+    
+    **Run Configuration:**
+    
+    1. Go to Run → Edit Configurations
+    2. Add new Cargo Command configuration
+    3. Set command: `run --bin deno`
+    4. Set program arguments: `run --allow-all test.ts`
+    
+    **Usage:**
+    1. Set breakpoints by clicking in the gutter
+    2. Click the debug button (🐛)
+    3. Use debugger controls in the Debug panel
+  </Tab>
+  
+  <Tab title="LLDB (Command Line)">
+    **Using lldb directly:**
+    
+    ```bash
+    # Build debug binary
+    cargo build --bin deno
+    
+    # Start lldb
+    lldb ./target/debug/deno
+    
+    # Set breakpoint
+    (lldb) breakpoint set --name run_local
+    (lldb) b deno::main
+    
+    # Run with arguments
+    (lldb) run eval 'console.log("test")'
+    
+    # Debug commands
+    (lldb) step          # Step into
+    (lldb) next          # Step over
+    (lldb) continue      # Continue execution
+    (lldb) print var     # Print variable
+    (lldb) bt            # Backtrace
+    ```
+  </Tab>
+</Tabs>
+
+### Debug Print Statements
+
+Quick debugging with print statements:
+
+```rust
+// Standard error output (doesn't interfere with stdout)
+eprintln!("Debug: {:?}", variable);
+
+// Debug macro (prints file, line, and value)
+dbg!(variable);
+dbg!(&some_struct);
+
+// Conditional debugging
+#[cfg(debug_assertions)]
+eprintln!("Debug mode: {:?}", data);
+```
+
+<Info>
+Use `eprintln!` instead of `println!` to avoid interfering with program output.
+</Info>
+
+### Verbose Logging
+
+Enable detailed logging output:
+
+```bash
+# Set log level to debug
+DENO_LOG=debug ./target/debug/deno run script.ts
+
+# Log specific modules
+DENO_LOG=deno_core=debug ./target/debug/deno run script.ts
+DENO_LOG=deno_fetch=trace ./target/debug/deno run script.ts
+
+# Multiple modules
+DENO_LOG=deno_core=debug,deno_fetch=trace ./target/debug/deno run script.ts
+```
+
+**Log Levels:**
+- `error` - Errors only
+- `warn` - Warnings and errors
+- `info` - Informational messages
+- `debug` - Debug information
+- `trace` - Very verbose output
+
+### Using the log Crate
+
+Add logging to your code:
+
+```rust
+use log::{debug, info, warn, error};
+
+fn my_function() {
+  debug!("Starting operation");
+  info!("Processing file: {}", path);
+  warn!("Deprecated API used");
+  error!("Operation failed: {}", err);
+}
+```
+
+## Debugging JavaScript Runtime
+
+### Chrome DevTools Inspector
+
+Deno supports the Chrome DevTools Protocol for debugging JavaScript:
+
+<Steps>
+  <Step title="Start with inspector">
+    ```bash
+    # Break on first line
+    ./target/debug/deno run --inspect-brk script.ts
+    
+    # Break on exception
+    ./target/debug/deno run --inspect script.ts
+    
+    # Custom port
+    ./target/debug/deno run --inspect=127.0.0.1:9229 script.ts
+    ```
+  </Step>
+  
+  <Step title="Connect DevTools">
+    1. Open Chrome browser
+    2. Navigate to `chrome://inspect`
+    3. Click "inspect" under your Deno process
+    4. DevTools will open
+  </Step>
+  
+  <Step title="Debug">
+    - Set breakpoints in the Sources tab
+    - Step through code
+    - Inspect variables in the Scope panel
+    - Use the Console for REPL
+  </Step>
+</Steps>
+
+<Note>
+The `--inspect-brk` flag breaks on the first line of code, while `--inspect` allows the program to run until you set a breakpoint.
+</Note>
+
+### Console Debugging
+
+JavaScript console methods:
+
+```javascript
+// Basic logging
+console.log("Message", variable);
+console.debug("Debug info");
+console.info("Info");
+console.warn("Warning");
+console.error("Error");
+
+// Formatted output
+console.log("User: %s, Age: %d", name, age);
+
+// Object inspection
+console.dir(object);
+console.table(array);
+
+// Timing
+console.time("operation");
+// ... code ...
+console.timeEnd("operation");
+
+// Stack trace
+console.trace("Trace point");
+```
+
+## Debugging Tests
+
+### Running Tests in Debug Mode
+
+```bash
+# Run test with output
+cargo test test_name -- --nocapture
+
+# Run test with debug logging
+DENO_LOG=debug cargo test test_name -- --nocapture
+
+# Run single test
+cargo test test_name --exact -- --nocapture
+```
+
+### Debugging Spec Tests
+
+```bash
+# Run specific spec test with output
+cargo test spec::run::basic -- --nocapture
+
+# Debug spec test failures
+DENO_LOG=debug cargo test spec::my_test -- --nocapture
+```
+
+### Debugging Test in IDE
+
+**VS Code:**
+
+1. Click the "Debug" link above `#[test]` function (requires rust-analyzer)
+2. Or add to `.vscode/launch.json`:
+
+```json
+{
+  "type": "lldb",
+  "request": "launch",
+  "name": "Debug Test",
+  "cargo": {
+    "args": [
+      "test",
+      "--no-run",
+      "--lib",
+      "--package=deno"
+    ]
+  },
+  "args": ["test_name", "--exact"],
+  "cwd": "${workspaceFolder}"
+}
+```
+
+## Performance Debugging
+
+### Backtraces
+
+Get detailed stack traces:
+
+```bash
+# Basic backtrace
+RUST_BACKTRACE=1 ./target/debug/deno run script.ts
+
+# Full backtrace with source locations
+RUST_BACKTRACE=full ./target/debug/deno run script.ts
+```
+
+### Profiling
+
+<Tabs>
+  <Tab title="perf (Linux)">
+    ```bash
+    # Build release binary
+    cargo build --release
+    
+    # Record profile
+    perf record -g ./target/release/deno run script.ts
+    
+    # View report
+    perf report
+    
+    # Generate flamegraph
+    perf script | stackcollapse-perf.pl | flamegraph.pl > flame.svg
+    ```
+  </Tab>
+  
+  <Tab title="Instruments (macOS)">
+    ```bash
+    # Build release binary
+    cargo build --release
+    
+    # Profile with Instruments
+    instruments -t "Time Profiler" ./target/release/deno run script.ts
+    ```
+  </Tab>
+  
+  <Tab title="cargo-flamegraph">
+    ```bash
+    # Install
+    cargo install flamegraph
+    
+    # Generate flamegraph
+    cargo flamegraph --bin deno -- run script.ts
+    
+    # Open flamegraph.svg in browser
+    ```
+  </Tab>
+</Tabs>
+
+### Memory Debugging
+
+```bash
+# Use Valgrind (Linux)
+valgrind --leak-check=full ./target/debug/deno run script.ts
+
+# Use heaptrack (Linux)
+heaptrack ./target/debug/deno run script.ts
+heaptrack_gui heaptrack.deno.12345.gz
+```
+
+## Common Debugging Scenarios
+
+<AccordionGroup>
+  <Accordion title="Debugging a crash or panic">
+    **Steps:**
+    
+    1. Enable backtrace:
+       ```bash
+       RUST_BACKTRACE=full ./target/debug/deno run script.ts
+       ```
+    
+    2. Look for the panic message and location
+    
+    3. Set a breakpoint before the panic in debugger
+    
+    4. Examine variable state at crash point
+  </Accordion>
+  
+  <Accordion title="Debugging slow performance">
+    **Steps:**
+    
+    1. Profile the code:
+       ```bash
+       cargo build --release
+       perf record -g ./target/release/deno run script.ts
+       perf report
+       ```
+    
+    2. Look for hot functions in the profile
+    
+    3. Add timing logs:
+       ```rust
+       let start = Instant::now();
+       // ... operation ...
+       eprintln!("Operation took: {:?}", start.elapsed());
+       ```
+    
+    4. Optimize hot paths
+  </Accordion>
+  
+  <Accordion title="Debugging module resolution">
+    **Steps:**
+    
+    1. Enable debug logging:
+       ```bash
+       DENO_LOG=deno_core=debug ./target/debug/deno run script.ts
+       ```
+    
+    2. Look for "Resolving" and "Loading" messages
+    
+    3. Check `module_loader.rs` with breakpoints
+    
+    4. Verify import map and resolution logic
+  </Accordion>
+  
+  <Accordion title="Debugging permission errors">
+    **Steps:**
+    
+    1. Check permission flags:
+       ```bash
+       ./target/debug/deno run --allow-read --allow-write script.ts
+       ```
+    
+    2. Add debug logging in permission checks:
+       ```rust
+       eprintln!("Checking read permission for: {}", path);
+       ```
+    
+    3. Set breakpoint in `runtime/permissions/`
+    
+    4. Verify permission state
+  </Accordion>
+  
+  <Accordion title="Debugging op failures">
+    **Steps:**
+    
+    1. Add logging to the op:
+       ```rust
+       #[op2]
+       fn op_my_op(arg: String) -> Result<String, AnyError> {
+         eprintln!("op_my_op called with: {}", arg);
+         // ...
+       }
+       ```
+    
+    2. Check JavaScript console for errors
+    
+    3. Use inspector to see JS stack trace
+    
+    4. Set breakpoint in op implementation
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Debugging
+
+### Debugging V8
+
+Debug V8-specific issues:
+
+```bash
+# Enable V8 debug output
+DENO_V8_FLAGS="--trace-opt --trace-deopt" ./target/debug/deno run script.ts
+
+# Trace inline caching
+DENO_V8_FLAGS="--trace-ic" ./target/debug/deno run script.ts
+
+# Trace garbage collection
+DENO_V8_FLAGS="--trace-gc" ./target/debug/deno run script.ts
+```
+
+### Core Dumps
+
+Generate and analyze core dumps:
+
+```bash
+# Enable core dumps (Linux)
+ulimit -c unlimited
+
+# Run program (will generate core file on crash)
+./target/debug/deno run script.ts
+
+# Debug with core dump
+lldb ./target/debug/deno -c core
+(lldb) bt  # Show backtrace
+```
+
+### Remote Debugging
+
+Debug on remote machines:
+
+```bash
+# Start with inspector on all interfaces
+./target/debug/deno run --inspect=0.0.0.0:9229 script.ts
+
+# Connect from local machine to remote:9229 via SSH tunnel
+ssh -L 9229:localhost:9229 user@remote
+
+# Open chrome://inspect and connect to localhost:9229
+```
+
+## Debugging Tools Summary
+
+<CardGroup cols={2}>
+  <Card title="IDE Debugger" icon="bug">
+    Best for step-by-step debugging
+    
+    **Use when:** Tracing logic flow, inspecting variables
+  </Card>
+  
+  <Card title="Print Debugging" icon="print">
+    Quick and simple
+    
+    **Use when:** Quick checks, production debugging
+  </Card>
+  
+  <Card title="Chrome DevTools" icon="chrome">
+    JavaScript debugging
+    
+    **Use when:** Debugging JS runtime issues
+  </Card>
+  
+  <Card title="Logging" icon="file-lines">
+    Runtime diagnostics
+    
+    **Use when:** Tracking execution flow, production issues
+  </Card>
+  
+  <Card title="Profiler" icon="chart-line">
+    Performance analysis
+    
+    **Use when:** Finding bottlenecks, optimizing
+  </Card>
+  
+  <Card title="Backtrace" icon="list">
+    Crash analysis
+    
+    **Use when:** Diagnosing panics, segfaults
+  </Card>
+</CardGroup>
+
+## Troubleshooting Tips
+
+<Steps>
+  <Step title="Reproduce the issue">
+    Create a minimal test case that reproduces the problem consistently.
+  </Step>
+  
+  <Step title="Gather information">
+    - What's the error message?
+    - What's the stack trace?
+    - What are the inputs?
+    - What's the expected vs actual behavior?
+  </Step>
+  
+  <Step title="Narrow down the cause">
+    - Use print debugging to find where it fails
+    - Use bisection: comment out code to isolate the issue
+    - Check recent changes with `git log`
+  </Step>
+  
+  <Step title="Use appropriate tools">
+    - Debugger for complex logic
+    - Profiler for performance
+    - Inspector for JavaScript
+    - Logging for understanding flow
+  </Step>
+  
+  <Step title="Fix and verify">
+    - Make the fix
+    - Add a test to prevent regression
+    - Verify the fix works
+  </Step>
+</Steps>
+
+## Getting Help
+
+If you're stuck:
+
+1. **Search existing issues** on GitHub
+2. **Ask in Discord** - [Deno Discord](https://discord.gg/deno)
+3. **Open a discussion** on GitHub Discussions
+4. **File an issue** with reproduction steps
+
+<Warning>
+When asking for help, always provide:
+- Deno version (`deno --version`)
+- Operating system
+- Minimal reproduction code
+- Error messages and stack traces
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing" icon="flask" href="/contributing/testing">
+    Learn about testing Deno
+  </Card>
+  <Card title="Code Structure" icon="folder-tree" href="/contributing/code-structure">
+    Understand the codebase structure
+  </Card>
+</CardGroup>

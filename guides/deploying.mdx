@@ -1,0 +1,614 @@
+---
+title: Deploying Deno Applications
+description: Learn how to deploy Deno applications to various platforms including Deno Deploy, Docker, cloud providers, and standalone executables.
+---
+
+Deno applications can be deployed in multiple ways: as standalone executables, in containers, on serverless platforms, or using Deno Deploy.
+
+## Deno Deploy
+
+Deno Deploy is the official hosting platform for Deno, offering global edge deployment.
+
+### Quick Deploy
+
+<Steps>
+  <Step title="Create a simple server">
+    ```typescript main.ts
+    Deno.serve(() => {
+      return new Response("Hello from Deno Deploy!");
+    });
+    ```
+  </Step>
+  
+  <Step title="Deploy with deployctl">
+    ```bash
+    # Install deployctl
+    deno install -A jsr:@deno/deployctl
+    
+    # Deploy
+    deployctl deploy --project=my-project main.ts
+    ```
+  </Step>
+  
+  <Step title="Access your deployment">
+    Your app will be available at `https://my-project.deno.dev`
+  </Step>
+</Steps>
+
+### Configure in deno.json
+
+```json deno.json
+{
+  "deploy": {
+    "org": "my-org",
+    "app": "my-app",
+    "runtime": {
+      "mode": "dynamic",
+      "entrypoint": "main.ts"
+    },
+    "include": ["main.ts", "routes/", "static/"],
+    "exclude": ["tests/", "*.test.ts"]
+  }
+}
+```
+
+Deploy with:
+
+```bash
+deployctl deploy
+```
+
+### Environment Variables
+
+Set environment variables in Deno Deploy:
+
+```bash
+deployctl deploy --env=API_KEY=secret --env=DATABASE_URL=postgres://...
+```
+
+Or via the dashboard at [dash.deno.com](https://dash.deno.com).
+
+### Build Configuration
+
+```json deno.json
+{
+  "deploy": {
+    "framework": "fresh",
+    "install": "deno install",
+    "build": "deno task build",
+    "predeploy": "deno run scripts/migrate.ts"
+  }
+}
+```
+
+### Static Site Deployment
+
+```json deno.json
+{
+  "deploy": {
+    "runtime": {
+      "mode": "static",
+      "cwd": "./dist",
+      "spa": true
+    }
+  }
+}
+```
+
+## Standalone Executables
+
+Compile your application to a standalone executable:
+
+### Basic Compilation
+
+```bash
+# Compile for current platform
+deno compile --allow-net --allow-read main.ts
+
+# Specify output name
+deno compile --output=myapp --allow-net main.ts
+
+# Cross-compile for different targets
+deno compile --target=x86_64-unknown-linux-gnu main.ts
+deno compile --target=x86_64-pc-windows-msvc main.ts
+deno compile --target=x86_64-apple-darwin main.ts
+deno compile --target=aarch64-apple-darwin main.ts
+```
+
+### Compile Configuration
+
+```json deno.json
+{
+  "compile": {
+    "permissions": {
+      "read": true,
+      "write": true,
+      "net": true,
+      "env": ["HOME", "PATH"]
+    }
+  },
+  "tasks": {
+    "compile": "deno compile --output=dist/app main.ts",
+    "compile:linux": "deno compile --target=x86_64-unknown-linux-gnu --output=dist/app-linux main.ts",
+    "compile:windows": "deno compile --target=x86_64-pc-windows-msvc --output=dist/app.exe main.ts",
+    "compile:mac": "deno compile --target=x86_64-apple-darwin --output=dist/app-mac main.ts"
+  }
+}
+```
+
+### Include Assets
+
+```bash
+# Include files in the executable
+deno compile --include=templates/ --allow-net main.ts
+```
+
+## Docker Deployment
+
+### Basic Dockerfile
+
+```dockerfile Dockerfile
+FROM denoland/deno:2.0.0
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency files
+COPY deno.json deno.lock ./
+
+# Cache dependencies
+RUN deno install --frozen
+
+# Copy application code
+COPY . .
+
+# Compile or cache the application
+RUN deno cache main.ts
+
+# Expose port
+EXPOSE 8000
+
+# Run the application
+CMD ["deno", "run", "--allow-net", "--allow-env", "main.ts"]
+```
+
+### Multi-stage Build
+
+```dockerfile Dockerfile
+# Build stage
+FROM denoland/deno:2.0.0 AS builder
+
+WORKDIR /app
+COPY . .
+RUN deno cache main.ts
+
+# Production stage
+FROM denoland/deno:2.0.0
+
+WORKDIR /app
+COPY --from=builder /app .
+COPY --from=builder /root/.cache/deno /root/.cache/deno
+
+EXPOSE 8000
+CMD ["deno", "run", "--allow-net", "--allow-env", "main.ts"]
+```
+
+### Alpine-based Image (Smaller)
+
+```dockerfile Dockerfile
+FROM denoland/deno:alpine-2.0.0
+
+WORKDIR /app
+COPY . .
+RUN deno cache main.ts
+
+EXPOSE 8000
+CMD ["deno", "run", "--allow-net", "main.ts"]
+```
+
+### Docker Compose
+
+```yaml docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://db:5432/myapp
+      - NODE_ENV=production
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=myapp
+      - POSTGRES_PASSWORD=secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+```
+
+### Build and Run
+
+```bash
+# Build image
+docker build -t my-deno-app .
+
+# Run container
+docker run -p 8000:8000 my-deno-app
+
+# With environment variables
+docker run -p 8000:8000 \
+  -e DATABASE_URL=postgres://... \
+  -e API_KEY=secret \
+  my-deno-app
+
+# Using docker-compose
+docker-compose up -d
+```
+
+## Cloud Platforms
+
+### AWS Lambda
+
+```typescript lambda.ts
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from "npm:@types/aws-lambda";
+
+export async function handler(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
+  return {
+    statusCode: 200,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: "Hello from Deno on Lambda!",
+      path: event.path,
+    }),
+  };
+}
+```
+
+```dockerfile Dockerfile.lambda
+FROM public.ecr.aws/lambda/provided:al2
+
+# Install Deno
+RUN yum install -y unzip
+RUN curl -fsSL https://deno.land/install.sh | sh
+ENV PATH="/root/.deno/bin:${PATH}"
+
+# Copy application
+WORKDIR /var/task
+COPY . .
+
+# Set up runtime
+COPY bootstrap /var/runtime/bootstrap
+RUN chmod +x /var/runtime/bootstrap
+
+CMD ["lambda.handler"]
+```
+
+### Google Cloud Run
+
+```dockerfile Dockerfile
+FROM denoland/deno:2.0.0
+
+WORKDIR /app
+COPY . .
+RUN deno cache main.ts
+
+EXPOSE 8080
+CMD ["deno", "run", "--allow-net", "--allow-env", "main.ts"]
+```
+
+```bash
+# Build and deploy
+gcloud builds submit --tag gcr.io/PROJECT_ID/app
+gcloud run deploy app --image gcr.io/PROJECT_ID/app --platform managed
+```
+
+### Azure Container Instances
+
+```bash
+# Build and push to Azure Container Registry
+az acr build --registry myregistry --image my-deno-app .
+
+# Deploy to Container Instances
+az container create \
+  --resource-group myResourceGroup \
+  --name my-deno-app \
+  --image myregistry.azurecr.io/my-deno-app \
+  --dns-name-label my-deno-app \
+  --ports 8000
+```
+
+### Fly.io
+
+```toml fly.toml
+app = "my-deno-app"
+primary_region = "iad"
+
+[build]
+  image = "denoland/deno:2.0.0"
+  
+[[services]]
+  internal_port = 8000
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+```
+
+```bash
+fly launch
+fly deploy
+```
+
+## Systemd Service (Linux)
+
+Run Deno as a system service:
+
+```ini /etc/systemd/system/myapp.service
+[Unit]
+Description=My Deno Application
+After=network.target
+
+[Service]
+Type=simple
+User=deno
+WorkingDirectory=/opt/myapp
+ExecStart=/usr/local/bin/deno run --allow-net --allow-read --allow-env /opt/myapp/main.ts
+Restart=on-failure
+RestartSec=10
+Environment="NODE_ENV=production"
+Environment="PORT=8000"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# Enable and start service
+sudo systemctl daemon-reload
+sudo systemctl enable myapp
+sudo systemctl start myapp
+
+# Check status
+sudo systemctl status myapp
+
+# View logs
+sudo journalctl -u myapp -f
+```
+
+## PM2 (Process Manager)
+
+```json ecosystem.config.json
+{
+  "apps": [
+    {
+      "name": "myapp",
+      "script": "deno",
+      "args": "run --allow-net --allow-env main.ts",
+      "cwd": "/path/to/app",
+      "env": {
+        "NODE_ENV": "production",
+        "PORT": "8000"
+      },
+      "instances": 4,
+      "exec_mode": "cluster",
+      "autorestart": true,
+      "watch": false,
+      "max_memory_restart": "500M"
+    }
+  ]
+}
+```
+
+```bash
+pm2 start ecosystem.config.json
+pm2 save
+pm2 startup
+```
+
+## Nginx Reverse Proxy
+
+```nginx /etc/nginx/sites-available/myapp
+server {
+    listen 80;
+    server_name example.com;
+
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+## Health Checks
+
+Implement health check endpoints:
+
+```typescript main.ts
+Deno.serve({ port: 8000 }, async (req) => {
+  const url = new URL(req.url);
+
+  // Health check endpoint
+  if (url.pathname === "/health") {
+    return Response.json({ status: "healthy", timestamp: new Date().toISOString() });
+  }
+
+  // Readiness check
+  if (url.pathname === "/ready") {
+    const isReady = await checkDatabaseConnection();
+    if (isReady) {
+      return Response.json({ status: "ready" });
+    }
+    return Response.json({ status: "not ready" }, { status: 503 });
+  }
+
+  // Application routes
+  return new Response("Hello, World!");
+});
+```
+
+## Production Checklist
+
+<AccordionGroup>
+  <Accordion title="Security">
+    - [ ] Set minimal permissions
+    - [ ] Use environment variables for secrets
+    - [ ] Enable HTTPS/TLS
+    - [ ] Set security headers
+    - [ ] Review npm package scripts (allowScripts)
+    - [ ] Use lock files
+  </Accordion>
+  
+  <Accordion title="Performance">
+    - [ ] Enable caching
+    - [ ] Optimize images and assets
+    - [ ] Use CDN for static files
+    - [ ] Implement rate limiting
+    - [ ] Configure appropriate timeout values
+  </Accordion>
+  
+  <Accordion title="Monitoring">
+    - [ ] Add health check endpoints
+    - [ ] Set up logging
+    - [ ] Configure error tracking
+    - [ ] Add metrics and monitoring
+    - [ ] Set up alerts
+  </Accordion>
+  
+  <Accordion title="Reliability">
+    - [ ] Implement graceful shutdown
+    - [ ] Configure restart policies
+    - [ ] Set up backups
+    - [ ] Test deployment process
+    - [ ] Document rollback procedure
+  </Accordion>
+</AccordionGroup>
+
+## Environment Configuration
+
+```typescript config.ts
+import { load } from "jsr:@std/dotenv";
+
+// Load environment-specific config
+const env = Deno.env.get("DENO_ENV") ?? "production";
+try {
+  await load({ envPath: `.env.${env}`, export: true });
+} catch {
+  console.warn(`No .env.${env} file found`);
+}
+
+export const config = {
+  port: parseInt(Deno.env.get("PORT") ?? "8000"),
+  env,
+  isDevelopment: env === "development",
+  isProduction: env === "production",
+  apiUrl: Deno.env.get("API_URL") ?? "https://api.example.com",
+  databaseUrl: Deno.env.get("DATABASE_URL"),
+};
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use lock files" icon="lock">
+    Always commit `deno.lock` and use `--frozen` in production
+  </Card>
+  
+  <Card title="Pin versions" icon="thumbtack">
+    Use exact versions for dependencies in production
+  </Card>
+  
+  <Card title="Minimize permissions" icon="shield">
+    Grant only the permissions your app needs
+  </Card>
+  
+  <Card title="Health checks" icon="heartbeat">
+    Implement health and readiness endpoints
+  </Card>
+  
+  <Card title="Graceful shutdown" icon="power-off">
+    Handle shutdown signals properly
+  </Card>
+  
+  <Card title="Monitor logs" icon="chart-line">
+    Set up centralized logging and monitoring
+  </Card>
+</CardGroup>
+
+## Example: Complete Production Setup
+
+```typescript main.ts
+import { config } from "./config.ts";
+
+const server = Deno.serve(
+  {
+    port: config.port,
+    onListen: ({ hostname, port }) => {
+      console.log(`Server running on http://${hostname}:${port}`);
+    },
+  },
+  async (req) => {
+    const url = new URL(req.url);
+
+    // Health check
+    if (url.pathname === "/health") {
+      return Response.json({ status: "healthy" });
+    }
+
+    // Application logic
+    return new Response("Hello, Production!");
+  }
+);
+
+// Graceful shutdown
+const shutdown = () => {
+  console.log("Shutting down gracefully...");
+  server.shutdown();
+  Deno.exit(0);
+};
+
+Deno.addSignalListener("SIGINT", shutdown);
+Deno.addSignalListener("SIGTERM", shutdown);
+```
+
+```json deno.json
+{
+  "tasks": {
+    "start": "deno run --allow-net --allow-env --allow-read main.ts",
+    "compile": "deno compile --allow-net --allow-env --allow-read --output=dist/app main.ts",
+    "docker:build": "docker build -t myapp .",
+    "docker:run": "docker run -p 8000:8000 myapp"
+  },
+  "lock": {
+    "frozen": true
+  },
+  "imports": {
+    "@std/dotenv": "jsr:@std/dotenv@0.225.0"
+  }
+}
+```

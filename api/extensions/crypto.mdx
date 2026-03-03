@@ -1,0 +1,504 @@
+---
+title: Crypto Extension (deno_crypto)
+description: Web Crypto API implementation for cryptographic operations
+---
+
+The `deno_crypto` extension provides cryptographic functionality through the Web Crypto API, including hashing, encryption, decryption, key generation, and digital signatures.
+
+## Location
+
+`ext/crypto/`
+
+## What It Provides
+
+### SubtleCrypto API
+
+Access via `crypto.subtle`:
+
+```javascript
+const subtle = crypto.subtle;
+```
+
+### Hashing
+
+Generate cryptographic hashes:
+
+```javascript
+// SHA-256 hash
+const data = new TextEncoder().encode("Hello, World!");
+const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+const hashArray = Array.from(new Uint8Array(hashBuffer));
+const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+
+console.log(hashHex);
+
+// Supported algorithms: SHA-1, SHA-256, SHA-384, SHA-512
+const sha512 = await crypto.subtle.digest("SHA-512", data);
+```
+
+### Key Generation
+
+Generate cryptographic keys:
+
+```javascript
+// Generate AES key
+const aesKey = await crypto.subtle.generateKey(
+  { name: "AES-GCM", length: 256 },
+  true,  // extractable
+  ["encrypt", "decrypt"]
+);
+
+// Generate RSA key pair
+const rsaKeyPair = await crypto.subtle.generateKey(
+  {
+    name: "RSA-PSS",
+    modulusLength: 2048,
+    publicExponent: new Uint8Array([1, 0, 1]),
+    hash: "SHA-256",
+  },
+  true,
+  ["sign", "verify"]
+);
+
+// Generate ECDSA key pair
+const ecdsaKeyPair = await crypto.subtle.generateKey(
+  { name: "ECDSA", namedCurve: "P-256" },
+  true,
+  ["sign", "verify"]
+);
+
+// Generate Ed25519 key pair
+const ed25519KeyPair = await crypto.subtle.generateKey(
+  { name: "Ed25519" },
+  true,
+  ["sign", "verify"]
+);
+```
+
+### Encryption and Decryption
+
+Encrypt and decrypt data:
+
+```javascript
+// AES-GCM encryption
+const key = await crypto.subtle.generateKey(
+  { name: "AES-GCM", length: 256 },
+  true,
+  ["encrypt", "decrypt"]
+);
+
+const iv = crypto.getRandomValues(new Uint8Array(12));
+const plaintext = new TextEncoder().encode("Secret message");
+
+const ciphertext = await crypto.subtle.encrypt(
+  { name: "AES-GCM", iv },
+  key,
+  plaintext
+);
+
+const decrypted = await crypto.subtle.decrypt(
+  { name: "AES-GCM", iv },
+  key,
+  ciphertext
+);
+
+const message = new TextDecoder().decode(decrypted);
+console.log(message); // "Secret message"
+
+// AES-CBC encryption
+const cbcKey = await crypto.subtle.generateKey(
+  { name: "AES-CBC", length: 128 },
+  true,
+  ["encrypt", "decrypt"]
+);
+
+const cbcIv = crypto.getRandomValues(new Uint8Array(16));
+const encrypted = await crypto.subtle.encrypt(
+  { name: "AES-CBC", iv: cbcIv },
+  cbcKey,
+  plaintext
+);
+```
+
+### Digital Signatures
+
+Sign and verify data:
+
+```javascript
+// ECDSA signing
+const keyPair = await crypto.subtle.generateKey(
+  { name: "ECDSA", namedCurve: "P-256" },
+  true,
+  ["sign", "verify"]
+);
+
+const data = new TextEncoder().encode("Message to sign");
+
+const signature = await crypto.subtle.sign(
+  { name: "ECDSA", hash: "SHA-256" },
+  keyPair.privateKey,
+  data
+);
+
+const valid = await crypto.subtle.verify(
+  { name: "ECDSA", hash: "SHA-256" },
+  keyPair.publicKey,
+  signature,
+  data
+);
+
+console.log("Signature valid:", valid);
+
+// RSA-PSS signing
+const rsaKey = await crypto.subtle.generateKey(
+  {
+    name: "RSA-PSS",
+    modulusLength: 2048,
+    publicExponent: new Uint8Array([1, 0, 1]),
+    hash: "SHA-256",
+  },
+  true,
+  ["sign", "verify"]
+);
+
+const rsaSignature = await crypto.subtle.sign(
+  { name: "RSA-PSS", saltLength: 32 },
+  rsaKey.privateKey,
+  data
+);
+```
+
+### HMAC
+
+Hash-based message authentication:
+
+```javascript
+// Generate HMAC key
+const hmacKey = await crypto.subtle.generateKey(
+  { name: "HMAC", hash: "SHA-256" },
+  true,
+  ["sign", "verify"]
+);
+
+const message = new TextEncoder().encode("Authenticate this");
+
+const mac = await crypto.subtle.sign(
+  "HMAC",
+  hmacKey,
+  message
+);
+
+const valid = await crypto.subtle.verify(
+  "HMAC",
+  hmacKey,
+  mac,
+  message
+);
+```
+
+### Key Derivation
+
+Derive keys from passwords or other keys:
+
+```javascript
+// PBKDF2 - Password-based key derivation
+const password = new TextEncoder().encode("my-password");
+const salt = crypto.getRandomValues(new Uint8Array(16));
+
+const baseKey = await crypto.subtle.importKey(
+  "raw",
+  password,
+  "PBKDF2",
+  false,
+  ["deriveBits", "deriveKey"]
+);
+
+const derivedKey = await crypto.subtle.deriveKey(
+  {
+    name: "PBKDF2",
+    salt,
+    iterations: 100000,
+    hash: "SHA-256",
+  },
+  baseKey,
+  { name: "AES-GCM", length: 256 },
+  true,
+  ["encrypt", "decrypt"]
+);
+
+// HKDF - HMAC-based key derivation
+const hkdfKey = await crypto.subtle.importKey(
+  "raw",
+  crypto.getRandomValues(new Uint8Array(32)),
+  "HKDF",
+  false,
+  ["deriveKey"]
+);
+
+const derived = await crypto.subtle.deriveKey(
+  {
+    name: "HKDF",
+    salt: crypto.getRandomValues(new Uint8Array(16)),
+    info: new Uint8Array([1, 2, 3]),
+    hash: "SHA-256",
+  },
+  hkdfKey,
+  { name: "AES-GCM", length: 256 },
+  true,
+  ["encrypt", "decrypt"]
+);
+
+// ECDH - Elliptic Curve Diffie-Hellman
+const aliceKeyPair = await crypto.subtle.generateKey(
+  { name: "ECDH", namedCurve: "P-256" },
+  true,
+  ["deriveBits"]
+);
+
+const bobKeyPair = await crypto.subtle.generateKey(
+  { name: "ECDH", namedCurve: "P-256" },
+  true,
+  ["deriveBits"]
+);
+
+const sharedSecret = await crypto.subtle.deriveBits(
+  { name: "ECDH", public: bobKeyPair.publicKey },
+  aliceKeyPair.privateKey,
+  256
+);
+```
+
+### Key Import/Export
+
+Import and export cryptographic keys:
+
+```javascript
+// Export key as JWK
+const key = await crypto.subtle.generateKey(
+  { name: "AES-GCM", length: 256 },
+  true,
+  ["encrypt", "decrypt"]
+);
+
+const jwk = await crypto.subtle.exportKey("jwk", key);
+console.log(jwk);
+
+// Import key from JWK
+const importedKey = await crypto.subtle.importKey(
+  "jwk",
+  jwk,
+  { name: "AES-GCM" },
+  true,
+  ["encrypt", "decrypt"]
+);
+
+// Export as raw bytes
+const rawKey = await crypto.subtle.exportKey("raw", key);
+
+// Export RSA public key as SPKI
+const rsaKeyPair = await crypto.subtle.generateKey(
+  {
+    name: "RSA-PSS",
+    modulusLength: 2048,
+    publicExponent: new Uint8Array([1, 0, 1]),
+    hash: "SHA-256",
+  },
+  true,
+  ["sign", "verify"]
+);
+
+const spki = await crypto.subtle.exportKey("spki", rsaKeyPair.publicKey);
+const pkcs8 = await crypto.subtle.exportKey("pkcs8", rsaKeyPair.privateKey);
+```
+
+### Random Values
+
+Generate cryptographically secure random values:
+
+```javascript
+// Generate random bytes
+const randomBytes = crypto.getRandomValues(new Uint8Array(32));
+
+// Generate random UUID
+const uuid = crypto.randomUUID();
+console.log(uuid); // "550e8400-e29b-41d4-a716-446655440000"
+```
+
+## Supported Algorithms
+
+### Hashing
+
+- SHA-1 (legacy, not recommended)
+- SHA-256
+- SHA-384
+- SHA-512
+
+### Encryption
+
+- **AES-CBC** - Block cipher with CBC mode
+- **AES-CTR** - Block cipher with counter mode
+- **AES-GCM** - Authenticated encryption
+- **RSA-OAEP** - RSA encryption with OAEP padding
+
+### Signing
+
+- **RSASSA-PKCS1-v1_5** - RSA signatures
+- **RSA-PSS** - RSA with PSS padding
+- **ECDSA** - Elliptic curve signatures (P-256, P-384)
+- **Ed25519** - Edwards-curve signatures
+- **HMAC** - Hash-based MAC
+
+### Key Derivation
+
+- **PBKDF2** - Password-based KDF
+- **HKDF** - HMAC-based KDF
+- **ECDH** - Elliptic Curve Diffie-Hellman (P-256, P-384)
+- **X25519** - Curve25519 key exchange
+
+### Key Wrapping
+
+- **AES-KW** - AES key wrap
+
+## Key Operations
+
+Rust operations exposed to JavaScript:
+
+```rust
+op_crypto_get_random_values    // Secure random number generation
+op_crypto_random_uuid          // Generate UUID v4
+op_crypto_subtle_digest        // Hash data
+op_crypto_generate_key         // Generate cryptographic keys
+op_crypto_import_key           // Import keys
+op_crypto_export_key           // Export keys
+op_crypto_encrypt              // Encrypt data
+op_crypto_decrypt              // Decrypt data
+op_crypto_sign_key             // Sign data
+op_crypto_verify_key           // Verify signatures
+op_crypto_derive_bits          // Derive key material
+op_crypto_wrap_key             // Wrap keys
+op_crypto_unwrap_key           // Unwrap keys
+```
+
+## Implementation Details
+
+### Extension Definition
+
+```rust:ext/crypto/lib.rs
+deno_core::extension!(deno_crypto,
+  deps = [ deno_webidl, deno_web ],
+  ops = [
+    op_crypto_get_random_values,
+    op_crypto_generate_key,
+    op_crypto_sign_key,
+    op_crypto_verify_key,
+    op_crypto_derive_bits,
+    op_crypto_import_key,
+    op_crypto_export_key,
+    op_crypto_encrypt,
+    op_crypto_decrypt,
+    op_crypto_subtle_digest,
+    op_crypto_random_uuid,
+    op_crypto_wrap_key,
+    op_crypto_unwrap_key,
+    // ... X25519, Ed25519 ops
+  ],
+  esm = [ "00_crypto.js" ],
+  options = {
+    maybe_seed: Option<u64>,
+  }
+);
+```
+
+### Cryptographic Libraries
+
+Uses industry-standard Rust crates:
+
+- **aws-lc-rs** - AWS libcrypto (FIPS-compliant)
+- **rsa** - RSA cryptography
+- **p256** / **p384** - NIST elliptic curves
+- **ed25519** - EdDSA signatures
+- **x25519** - Curve25519 key exchange
+- **aes-kw** - AES key wrapping
+- **base64** - Base64 encoding
+
+### Async Operations
+
+Cryptographic operations run in thread pool:
+
+```rust
+#[op2]
+pub async fn op_crypto_sign_key(
+  args: SignArg,
+  data: JsBuffer,
+) -> Result<Uint8Array, CryptoError> {
+  deno_core::unsync::spawn_blocking(move || {
+    // Heavy crypto work in background thread
+  }).await?
+}
+```
+
+### Random Number Generation
+
+Uses OS random source:
+
+```rust
+use rand::thread_rng;
+use rand::Rng;
+
+let mut rng = thread_rng();
+rng.fill(output);
+```
+
+Optional seeded RNG for testing:
+
+```rust
+state.put(StdRng::seed_from_u64(seed));
+```
+
+## Security Considerations
+
+### Best Practices
+
+1. **Use strong algorithms**: Prefer AES-GCM, Ed25519, ECDSA over legacy options
+2. **Proper IV/nonce**: Always use fresh, random IVs
+3. **Key sizes**: Use at least 256-bit keys for symmetric encryption
+4. **Salt**: Use random salts for password hashing
+5. **Iterations**: Use high iteration counts for PBKDF2 (100,000+)
+
+### Avoid
+
+- SHA-1 for new applications (use SHA-256 or higher)
+- Reusing IVs/nonces with the same key
+- Hardcoded cryptographic keys
+- Low iteration counts in PBKDF2
+
+## File Structure
+
+```
+ext/crypto/
+├── lib.rs             # Extension definition
+├── decrypt.rs         # Decryption operations
+├── encrypt.rs         # Encryption operations
+├── export_key.rs      # Key export
+├── generate_key.rs    # Key generation
+├── import_key.rs      # Key import
+├── key.rs             # Key types and algorithms
+├── shared.rs          # Shared utilities
+├── ed25519.rs         # Ed25519 operations
+├── x25519.rs          # X25519 operations
+├── x448.rs            # X448 operations
+└── 00_crypto.js       # JavaScript API
+```
+
+## Standards Compliance
+
+Implements:
+
+- [Web Crypto API](https://www.w3.org/TR/WebCryptoAPI/)
+- Various IETF RFCs for cryptographic algorithms
+- NIST standards for AES, SHA, and elliptic curves
+
+## See Also
+
+- [Web Extension](/api/extensions/web) - Base types
+- [TLS Extension](https://docs.deno.com/api/deno/~/Deno.connectTls) - Secure connections

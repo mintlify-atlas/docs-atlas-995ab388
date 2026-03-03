@@ -1,0 +1,342 @@
+---
+title: deno bundle
+description: Bundle your Deno project into optimized JavaScript files
+---
+
+The `deno bundle` command bundles your project's modules into optimized JavaScript files using esbuild.
+
+## Usage
+
+```bash
+deno bundle [OPTIONS] <ENTRYPOINTS>...
+```
+
+## Basic Examples
+
+```bash
+# Bundle a single file
+deno bundle main.ts
+
+# Bundle with output file
+deno bundle --output bundle.js main.ts
+
+# Bundle multiple entrypoints
+deno bundle main.ts worker.ts
+
+# Bundle to directory
+deno bundle --outdir dist/ main.ts
+
+# Bundle with watch mode
+deno bundle --watch main.ts
+```
+
+## Output Options
+
+<ParamField path="--output" type="string">
+  Output file path (single entrypoint only)
+  
+  ```bash
+  deno bundle --output dist/bundle.js main.ts
+  ```
+</ParamField>
+
+<ParamField path="--outdir" type="string">
+  Output directory path
+  
+  ```bash
+  deno bundle --outdir dist/ main.ts worker.ts
+  ```
+</ParamField>
+
+## Format Options
+
+<ParamField path="--format" type="string">
+  Output format (esm, cjs, iife)
+  
+  ```bash
+  # ES modules (default)
+  deno bundle --format esm main.ts
+  
+  # CommonJS
+  deno bundle --format cjs main.ts
+  
+  # Immediately Invoked Function Expression
+  deno bundle --format iife main.ts
+  ```
+</ParamField>
+
+<ParamField path="--platform" type="string">
+  Target platform (deno, node, browser, neutral)
+  
+  ```bash
+  # For Deno runtime
+  deno bundle --platform deno main.ts
+  
+  # For Node.js
+  deno bundle --platform node main.ts
+  
+  # For browsers
+  deno bundle --platform browser main.ts
+  ```
+</ParamField>
+
+## Optimization Options
+
+<ParamField path="--minify" type="boolean">
+  Minify the output
+  
+  ```bash
+  deno bundle --minify main.ts
+  ```
+</ParamField>
+
+<ParamField path="--keep-names" type="boolean">
+  Keep function and class names when minifying
+  
+  ```bash
+  deno bundle --minify --keep-names main.ts
+  ```
+</ParamField>
+
+<ParamField path="--code-splitting" type="boolean">
+  Enable code splitting for multiple entrypoints
+  
+  ```bash
+  deno bundle --code-splitting --outdir dist/ main.ts worker.ts
+  ```
+</ParamField>
+
+## External Dependencies
+
+<ParamField path="--external" type="string">
+  Mark packages as external (not bundled)
+  
+  ```bash
+  # Single external
+  deno bundle --external react main.ts
+  
+  # Multiple externals
+  deno bundle --external=react,react-dom main.ts
+  ```
+</ParamField>
+
+<ParamField path="--packages" type="string">
+  How to handle npm packages (bundle, external)
+  
+  ```bash
+  # Bundle npm packages (default)
+  deno bundle --packages bundle main.ts
+  
+  # Keep npm packages external
+  deno bundle --packages external main.ts
+  ```
+</ParamField>
+
+## Source Maps
+
+<ParamField path="--sourcemap" type="string">
+  Generate source maps (linked, inline, external, none)
+  
+  ```bash
+  # Linked source maps (default)
+  deno bundle --sourcemap linked main.ts
+  
+  # Inline source maps
+  deno bundle --sourcemap inline main.ts
+  
+  # External source map file
+  deno bundle --sourcemap external main.ts
+  
+  # No source maps
+  deno bundle --sourcemap none main.ts
+  ```
+</ParamField>
+
+## Advanced Options
+
+<ParamField path="--inline-imports" type="boolean">
+  Inline dynamic imports
+  
+  ```bash
+  deno bundle --inline-imports main.ts
+  ```
+</ParamField>
+
+## Watch Mode
+
+<ParamField path="--watch" type="boolean">
+  Watch for changes and rebuild automatically
+  
+  ```bash
+  deno bundle --watch --outdir dist/ main.ts
+  ```
+</ParamField>
+
+## Examples
+
+### Simple Library Bundle
+
+```typescript
+// lib.ts
+export function greet(name: string) {
+  return `Hello, ${name}!`;
+}
+
+export class Counter {
+  private count = 0;
+  
+  increment() {
+    this.count++;
+  }
+  
+  getCount() {
+    return this.count;
+  }
+}
+```
+
+```bash
+# Bundle as ES module
+deno bundle --format esm --output dist/lib.js lib.ts
+
+# Bundle and minify
+deno bundle --format esm --minify --output dist/lib.min.js lib.ts
+```
+
+### Browser Bundle
+
+```typescript
+// browser-app.ts
+import { render } from "npm:preact@10";
+
+function App() {
+  return <h1>Hello, Browser!</h1>;
+}
+
+render(<App />, document.body);
+```
+
+```bash
+# Bundle for browser with IIFE format
+deno bundle \
+  --platform browser \
+  --format iife \
+  --minify \
+  --output public/app.js \
+  browser-app.ts
+```
+
+### Node.js Compatible Bundle
+
+```typescript
+// node-compat.ts
+import express from "npm:express@4";
+
+const app = express();
+app.get("/", (req, res) => res.send("Hello!"));
+app.listen(3000);
+```
+
+```bash
+# Bundle for Node.js
+deno bundle \
+  --platform node \
+  --format cjs \
+  --packages external \
+  --output dist/server.cjs \
+  node-compat.ts
+```
+
+### Multiple Entrypoints with Code Splitting
+
+```bash
+# Bundle multiple entries with shared chunks
+deno bundle \
+  --code-splitting \
+  --format esm \
+  --outdir dist/ \
+  src/main.ts \
+  src/worker.ts \
+  src/admin.ts
+```
+
+### Development vs Production
+
+```bash
+# Development build with source maps
+deno bundle \
+  --format esm \
+  --sourcemap linked \
+  --outdir dist/dev/ \
+  main.ts
+
+# Production build minified
+deno bundle \
+  --format esm \
+  --minify \
+  --keep-names \
+  --sourcemap external \
+  --outdir dist/prod/ \
+  main.ts
+```
+
+### HTML Entrypoint
+
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My App</title>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
+```
+
+```bash
+# Bundle HTML file (processes script tags)
+deno bundle --outdir dist/ index.html
+```
+
+### Watch Mode for Development
+
+```bash
+# Auto-rebuild on changes
+deno bundle \
+  --watch \
+  --format esm \
+  --sourcemap linked \
+  --outdir dist/ \
+  src/main.ts
+```
+
+## Configuration
+
+Bundling options can be configured in `deno.json`:
+
+```json
+{
+  "bundle": {
+    "format": "esm",
+    "platform": "browser",
+    "minify": true,
+    "sourcemap": "linked",
+    "external": ["react", "react-dom"]
+  }
+}
+```
+
+## Output Structure
+
+When using `--outdir`, the bundler creates:
+
+```
+dist/
+├── main.js          # Main bundle
+├── main.js.map      # Source map
+├── chunk-abc123.js  # Shared chunk (if code splitting)
+└── worker.js        # Worker bundle (if multiple entries)
+```

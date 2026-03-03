@@ -1,0 +1,454 @@
+---
+title: Development Guide
+description: Workflows, commands, and best practices for developing Deno including testing, debugging, and common development tasks
+---
+
+This guide covers the essential workflows and commands for developing Deno.
+
+## Quick Development Commands
+
+### Building and Running
+
+<CodeGroup>
+  ```bash Quick Build
+  # Fast iteration (less optimization)
+  cargo build --bin deno
+  ```
+
+  ```bash Full Build
+  # Standard debug build with all features
+  cargo build
+  ```
+
+  ```bash Type Check Only
+  # Fast - checks compilation without building binary
+  cargo check
+  ```
+
+  ```bash Check Specific Package
+  cargo check -p deno_runtime
+  ```
+
+  ```bash Release Build
+  # Slow to compile, optimized for performance
+  cargo build --release
+  ```
+</CodeGroup>
+
+### Code Quality
+
+<CodeGroup>
+  ```bash Format Code
+  ./tools/format.js
+  ```
+
+  ```bash Lint Code
+  ./tools/lint.js
+  ```
+
+  ```bash Lint JavaScript Only
+  ./tools/lint.js --js
+  ```
+
+  ```bash Format and Lint
+  ./tools/format.js && ./tools/lint.js
+  ```
+</CodeGroup>
+
+## Testing
+
+### Running Tests
+
+<CodeGroup>
+  ```bash All Tests
+  # Warning: This takes a while!
+  cargo test
+  ```
+
+  ```bash Filter by Name
+  cargo test <nameOfTest>
+  ```
+
+  ```bash Specific Package
+  cargo test -p deno_core
+  ```
+
+  ```bash CLI Integration Tests
+  cargo test --bin deno
+  ```
+
+  ```bash Spec Tests Only
+  cargo test specs
+  ```
+
+  ```bash Specific Spec Test
+  cargo test spec::test_name
+  ```
+</CodeGroup>
+
+### Test Organization
+
+Deno uses several types of tests:
+
+<CardGroup cols={2}>
+  <Card title="Spec Tests" icon="file-code">
+    **Location:** `tests/specs/`
+    
+    Main integration tests that execute CLI commands and validate output.
+  </Card>
+  
+  <Card title="Unit Tests" icon="vial">
+    **Location:** Inline with source code
+    
+    Test individual functions and modules.
+  </Card>
+  
+  <Card title="Integration Tests" icon="puzzle-piece">
+    **Location:** `cli/tests/`
+    
+    Additional integration tests for CLI functionality.
+  </Card>
+  
+  <Card title="Web Platform Tests" icon="globe">
+    **Location:** `tests/wpt/`
+    
+    Tests for web standards compliance.
+  </Card>
+</CardGroup>
+
+### Spec Tests
+
+The main form of integration test in Deno is the "spec" test. These tests execute CLI commands and assert against their output.
+
+#### Creating a Spec Test
+
+<Steps>
+  <Step title="Create test directory">
+    Create a directory in `tests/specs/` with a descriptive name:
+    
+    ```bash
+    mkdir tests/specs/my_feature
+    ```
+  </Step>
+  
+  <Step title="Add test configuration">
+    Create `__test__.jsonc` to describe your test steps:
+    
+    ```jsonc tests/specs/my_feature/__test__.jsonc
+    {
+      "tests": {
+        "basic_case": {
+          "args": "run main.ts",
+          "output": "expected.out"
+        },
+        "with_permissions": {
+          "args": "run --allow-net main.ts",
+          "output": "[WILDCARD]success[WILDCARD]"
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Add test files">
+    Add input files and expected output:
+    
+    ```typescript tests/specs/my_feature/main.ts
+    console.log("Hello, Deno!");
+    ```
+    
+    ```text tests/specs/my_feature/expected.out
+    Hello, Deno!
+    ```
+  </Step>
+  
+  <Step title="Run your test">
+    ```bash
+    cargo test spec::my_feature
+    ```
+  </Step>
+</Steps>
+
+#### Output Matching
+
+Spec test output files support special matching syntax:
+
+- **`[WILDCARD]`** - Matches 0 or more of any character (like `.*` in regex), can cross newlines
+- **`[WILDLINE]`** - Matches 0 or more characters until end of line
+- **`[WILDCHAR]`** - Match the next character
+- **`[WILDCHARS(5)]`** - Match any of the next 5 characters
+- **`[UNORDERED_START]` ... `[UNORDERED_END]`** - Match lines in any order (useful for non-deterministic output)
+- **`[# comment]`** - Line comments
+
+**Example:**
+
+```text expected.out
+Check file://[WILDCARD]/main.ts
+[WILDCARD]
+Successfully compiled [WILDLINE]
+```
+
+## Development Workflows
+
+### Adding a New CLI Subcommand
+
+<Steps>
+  <Step title="Define command flags">
+    Add your command structure in `cli/args/flags.rs`
+  </Step>
+  
+  <Step title="Create command handler">
+    Add the command handler in `cli/tools/<command_name>.rs` or `cli/tools/<command_name>/mod.rs`
+    
+    **Reference examples:**
+    - Simple command: `cli/tools/fmt.rs`
+    - Complex command: `cli/tools/test/`
+  </Step>
+  
+  <Step title="Wire up the command">
+    Connect your command in `cli/main.rs` (actually `cli/lib.rs`)
+  </Step>
+  
+  <Step title="Add tests">
+    Create spec tests in `tests/specs/<command_name>/`
+  </Step>
+</Steps>
+
+### Modifying or Adding an Extension
+
+Extensions provide native functionality to JavaScript (filesystem, networking, etc.).
+
+<Steps>
+  <Step title="Navigate to extension">
+    Extensions are in `ext/<extension_name>/` (e.g., `ext/fs/`, `ext/net/`)
+  </Step>
+  
+  <Step title="Implement ops">
+    Rust code provides the "ops" (operations) exposed to JavaScript
+  </Step>
+  
+  <Step title="Add JavaScript APIs">
+    JavaScript code in the extension provides higher-level APIs
+  </Step>
+  
+  <Step title="Register extension">
+    For new extensions, update `runtime/worker.rs` to register it
+  </Step>
+  
+  <Step title="Add tests">
+    Add tests in the extension's directory
+  </Step>
+</Steps>
+
+### Updating Dependencies
+
+<CodeGroup>
+  ```bash Update Cargo Dependencies
+  cargo update
+  ```
+
+  ```bash Update to Latest Compatible
+  # Requires: cargo install cargo-edit
+  cargo upgrade
+  ```
+
+  ```bash Check Outdated
+  # Requires: cargo install cargo-outdated
+  cargo outdated
+  ```
+</CodeGroup>
+
+## Debugging
+
+### Debugging Rust Code
+
+#### Using an IDE Debugger
+
+1. Set breakpoints in Rust code
+2. Run tests in debug mode through your IDE (VS Code with rust-analyzer, IntelliJ IDEA, etc.)
+
+#### Using LLDB
+
+```bash
+lldb ./target/debug/deno
+(lldb) run eval 'console.log("test")'
+```
+
+### Debugging JavaScript Runtime
+
+Enable the V8 inspector and connect Chrome DevTools:
+
+```bash
+./target/debug/deno run --inspect-brk script.ts
+# Then open chrome://inspect in Chrome
+```
+
+### Verbose Logging
+
+<CodeGroup>
+  ```bash General Debug Logging
+  DENO_LOG=debug ./target/debug/deno run script.ts
+  ```
+
+  ```bash Module-Specific Logging
+  DENO_LOG=deno_core=debug ./target/debug/deno run script.ts
+  ```
+</CodeGroup>
+
+### Debug Prints
+
+**In Rust code:**
+
+```rust
+eprintln!("Debug: {:?}", some_variable);
+dbg!(some_variable);
+```
+
+**In JavaScript runtime:**
+
+```javascript
+console.log("Debug:", value);
+```
+
+### Backtraces
+
+For crashes or panics:
+
+<CodeGroup>
+  ```bash Standard Backtrace
+  RUST_BACKTRACE=1 ./target/debug/deno run script.ts
+  ```
+
+  ```bash Full Backtrace
+  RUST_BACKTRACE=full ./target/debug/deno run script.ts
+  ```
+</CodeGroup>
+
+## Troubleshooting
+
+### Build Failures
+
+<AccordionGroup>
+  <Accordion title="Error: linking with `cc` failed">
+    Make sure you have the required system dependencies:
+    
+    - **macOS:** `xcode-select --install`
+    - **Linux:** Install `build-essential` or equivalent
+  </Accordion>
+  
+  <Accordion title="Error: failed to download dependencies">
+    1. Check your internet connection
+    2. Try `cargo clean` then rebuild
+    3. If behind a proxy, configure cargo accordingly
+  </Accordion>
+  
+  <Accordion title="Slow compile times">
+    - Use `cargo check` instead of `cargo build` when possible
+    - Use `--bin deno` to build only the main binary
+    - Consider using `sccache` or `mold` linker for faster builds
+    - Use `cargo-watch` for incremental builds
+  </Accordion>
+</AccordionGroup>
+
+### Test Failures
+
+<AccordionGroup>
+  <Accordion title="Spec test failures">
+    - Check the test output carefully for differences
+    - Update `.out` files if output format changed intentionally
+    - Use `[WILDCARD]` for non-deterministic parts of output
+  </Accordion>
+  
+  <Accordion title="Flaky tests">
+    - Add `[UNORDERED_START]`/`[UNORDERED_END]` for order-independent output
+    - Check for race conditions in test code
+    - May need to increase timeouts or add retries
+  </Accordion>
+  
+  <Accordion title="Permission errors in tests">
+    - Ensure test files have correct permissions
+    - Check that test setup properly grants necessary permissions
+  </Accordion>
+</AccordionGroup>
+
+## Codebase Navigation
+
+### Key Files to Understand
+
+<CardGroup cols={2}>
+  <Card title="cli/main.rs" icon="door-open">
+    Entry point and command routing
+  </Card>
+  
+  <Card title="cli/args/flags.rs" icon="flag">
+    CLI flag parsing and structure
+  </Card>
+  
+  <Card title="runtime/worker.rs" icon="gear">
+    Worker/runtime initialization
+  </Card>
+  
+  <Card title="runtime/permissions.rs" icon="lock">
+    Permission system implementation
+  </Card>
+  
+  <Card title="cli/module_loader.rs" icon="cube">
+    Module loading and resolution
+  </Card>
+</CardGroup>
+
+### Common Patterns
+
+- **Ops** - Rust functions exposed to JavaScript (in `ext/` directories)
+- **Extensions** - Collections of ops and JS code providing functionality
+- **Workers** - JavaScript execution contexts (main worker, web workers)
+- **Resources** - Managed objects passed between Rust and JS (files, sockets, etc.)
+
+### Finding Examples
+
+<Steps>
+  <Step title="Adding a CLI flag?">
+    Look at similar commands in `cli/args/flags.rs`
+  </Step>
+  
+  <Step title="Adding an op?">
+    Look at ops in relevant `ext/` directory (e.g., `ext/fs/lib.rs`)
+  </Step>
+  
+  <Step title="Adding a tool?">
+    Reference existing tools in `cli/tools/`
+  </Step>
+</Steps>
+
+## Performance Tips
+
+<CardGroup cols={2}>
+  <Card title="Fast Iteration" icon="bolt">
+    Use `cargo build --bin deno` for faster builds during development
+  </Card>
+  
+  <Card title="Type Checking" icon="check">
+    Use `cargo check` instead of `cargo build` when you only need to verify compilation
+  </Card>
+  
+  <Card title="Incremental Builds" icon="layer-group">
+    Install `cargo-watch` for automatic rebuilds on file changes
+  </Card>
+  
+  <Card title="Faster Linking" icon="link">
+    Use `sccache` or the `mold` linker to speed up linking
+  </Card>
+</CardGroup>
+
+## Getting Help
+
+When you're stuck:
+
+1. **Check existing issues** on GitHub
+2. **Look at recent PRs** for similar changes
+3. **Search the Discord** community for discussions
+4. **Ask the maintainers** - they're helpful and responsive!
+
+<Card title="Need Help?" icon="question" href="https://discord.gg/deno">
+  Join the Deno Discord community for real-time help and discussions
+</Card>

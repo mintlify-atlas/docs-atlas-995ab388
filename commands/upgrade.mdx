@@ -1,0 +1,165 @@
+---
+title: deno upgrade
+description: Upgrade Deno to the latest or specified version
+---
+
+The `deno upgrade` command upgrades your Deno installation to a newer version.
+
+## Usage
+
+```bash
+deno upgrade [OPTIONS] [VERSION_OR_HASH_OR_CHANNEL]
+```
+
+## Description
+
+Upgrades the Deno executable to the latest version or a specified version. By default, it downloads and installs the latest stable release. The command supports different release channels (stable, canary, rc, lts) and can upgrade to specific versions.
+
+## Arguments
+
+<ParamField path="VERSION_OR_HASH_OR_CHANNEL" type="string">
+  Specify a version, git hash (for canary), or channel name. Can be:
+  - A version number (e.g., `1.40.0`)
+  - A git commit hash (for canary builds)
+  - A channel name: `stable`, `canary`, `rc`, or `lts`
+</ParamField>
+
+## Options
+
+<ParamField path="--version" type="string">
+  The version to upgrade to (e.g., `1.40.0`).
+</ParamField>
+
+<ParamField path="--output" type="string">
+  The path to output the updated executable to. Defaults to the current Deno executable path.
+</ParamField>
+
+<ParamField path="--dry-run" type="boolean" default="false">
+  Perform all checks without actually upgrading.
+</ParamField>
+
+<ParamField path="--force" type="boolean" default="false">
+  Force upgrade even if already on the latest version.
+</ParamField>
+
+<ParamField path="--canary" type="boolean" default="false">
+  Upgrade to the latest canary build.
+</ParamField>
+
+<ParamField path="--release-candidate" type="boolean" default="false">
+  Upgrade to the latest release candidate.
+</ParamField>
+
+<ParamField path="--checksum" type="string">
+  Verify the download with this SHA-256 checksum.
+</ParamField>
+
+## Release Channels
+
+### Stable
+The default release channel with thoroughly tested, production-ready versions.
+
+```bash
+deno upgrade
+deno upgrade stable
+deno upgrade 1.40.0
+```
+
+### Canary
+Nightly builds from the main branch with the latest features.
+
+```bash
+deno upgrade canary
+deno upgrade --canary
+deno upgrade 5c69b4861b52ab406e73b9cd85c254f0505cb20f
+```
+
+### Release Candidate (RC)
+Pre-release versions for testing upcoming major releases.
+
+```bash
+deno upgrade rc
+deno upgrade --release-candidate
+deno upgrade 2.0.0-rc.0
+```
+
+### LTS (Long Term Support)
+Versions with extended support for stability-focused users.
+
+```bash
+deno upgrade lts
+```
+
+## Examples
+
+### Upgrade to latest stable version
+
+```bash
+deno upgrade
+```
+
+### Upgrade to a specific version
+
+```bash
+deno upgrade 1.40.0
+```
+
+or
+
+```bash
+deno upgrade --version 1.40.0
+```
+
+### Upgrade to the latest canary build
+
+```bash
+deno upgrade canary
+```
+
+### Upgrade to a specific canary build
+
+```bash
+deno upgrade 5c69b4861b52ab406e73b9cd85c254f0505cb20f
+```
+
+### Dry run to check what would be upgraded
+
+```bash
+deno upgrade --dry-run
+```
+
+### Force upgrade to reinstall the current version
+
+```bash
+deno upgrade --force
+```
+
+### Install to a custom location
+
+```bash
+deno upgrade --output /usr/local/bin/deno
+```
+
+### Verify download with checksum
+
+```bash
+deno upgrade --checksum <sha256-hash>
+```
+
+## Environment Variables
+
+<ParamField path="DENO_NO_UPDATE_CHECK" type="boolean">
+  Disable automatic update checks when set to any value.
+</ParamField>
+
+<ParamField path="DENO_INSTALL_ROOT" type="string">
+  Override the default installation directory.
+</ParamField>
+
+## Notes
+
+- The upgrade command caches downloaded binaries to avoid re-downloading the same version
+- On Windows, running Deno LSP processes will be terminated before upgrading
+- If upgrading fails due to permissions, you may need to run with elevated privileges
+- Downloaded versions are verified before installation
+- For canary builds, old cached versions are automatically pruned (keeps last 10)

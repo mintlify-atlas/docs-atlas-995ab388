@@ -1,0 +1,169 @@
+---
+title: deno init
+description: Initialize a new project
+---
+
+The `deno init` command scaffolds a new Deno project with a basic file structure.
+
+## Usage
+
+```bash
+deno init [OPTIONS] [DIR]
+```
+
+## Description
+
+Initialize a new Deno project with starter files including a main module, test file, and configuration file.
+
+## Flags
+
+<ParamField path="--lib" type="boolean">
+  Initialize a library project with module exports and JSR publishing configuration
+</ParamField>
+
+<ParamField path="--serve" type="boolean">
+  Initialize a server project with HTTP server example
+</ParamField>
+
+<ParamField path="--empty" type="boolean">
+  Initialize an empty project with minimal setup
+</ParamField>
+
+<ParamField path="--package" type="string">
+  Initialize from a template package (npm: or jsr: prefix)
+</ParamField>
+
+<ParamField path="--yes" type="boolean">
+  Skip interactive prompts when using --package flag
+</ParamField>
+
+## Project Types
+
+### Default Project
+
+Creates a basic project with:
+- `main.ts` - Main module with example function
+- `main_test.ts` - Test file
+- `deno.json` - Configuration file with tasks
+
+```bash
+deno init
+deno init my-project
+```
+
+### Library Project
+
+Creates a library project ready for publishing to JSR:
+- `mod.ts` - Module entry point
+- `mod_test.ts` - Test file
+- `deno.json` - Configuration with name, version, and exports
+
+```bash
+deno init --lib
+deno init --lib my-library
+```
+
+### Server Project
+
+Creates an HTTP server project:
+- `main.ts` - Server with routing examples
+- `main_test.ts` - Server tests
+- `static/` - Static file directory
+- `deno.json` - Configuration with serve task
+
+```bash
+deno init --serve
+deno init --serve my-server
+```
+
+### Empty Project
+
+Creates a minimal project:
+- `main.ts` - Simple hello world
+- `deno.json` - Basic configuration
+
+```bash
+deno init --empty
+```
+
+## Initialize from Package
+
+### From npm
+
+Initialize a project using an npm create package:
+
+```bash
+deno init --package npm:create-vite
+deno init --package npm:create-next-app
+```
+
+### From JSR
+
+Initialize from a JSR template:
+
+```bash
+deno init --package jsr:@fresh/init
+```
+
+### With arguments
+
+Pass additional arguments to the initialization script:
+
+```bash
+deno init --package npm:create-vite -- my-app --template react
+```
+
+## Examples
+
+### Initialize in current directory
+
+```bash
+deno init
+```
+
+### Initialize in new directory
+
+```bash
+deno init my-project
+cd my-project
+```
+
+### Initialize a library
+
+```bash
+deno init --lib my-library
+cd my-library
+deno test
+```
+
+### Initialize a server
+
+```bash
+deno init --serve my-server
+cd my-server
+deno task dev
+```
+
+### Use a template without prompts
+
+```bash
+deno init --package npm:create-vite --yes
+```
+
+## After Initialization
+
+Once initialized, you can:
+
+```bash
+# Run the program
+deno run main.ts
+
+# Run with watch mode
+deno task dev
+
+# Run tests
+deno test
+
+# For library projects, publish to JSR
+deno publish --dry-run
+```

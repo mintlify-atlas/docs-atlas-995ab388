@@ -1,0 +1,230 @@
+---
+title: Installation
+description: Install the Deno runtime on your system using one of several methods
+---
+
+# Installation
+
+Install the Deno runtime on your system using one of the commands below. Deno ships as a single executable with no dependencies, making installation quick and easy.
+
+## Quick Install
+
+<Tabs>
+  <Tab title="macOS / Linux">
+    Use the installation script with curl:
+    
+    ```bash
+    curl -fsSL https://deno.land/install.sh | sh
+    ```
+    
+    Or install via Homebrew:
+    
+    ```bash
+    brew install deno
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    Use PowerShell:
+    
+    ```powershell
+    irm https://deno.land/install.ps1 | iex
+    ```
+    
+    Or install via package managers like Chocolatey, WinGet, or Scoop (see below).
+  </Tab>
+</Tabs>
+
+## Installation Methods
+
+Choose the installation method that works best for your platform and preferences.
+
+### Shell Script (Mac, Linux)
+
+The shell script installer is the recommended method for macOS and Linux:
+
+```bash
+curl -fsSL https://deno.land/install.sh | sh
+```
+
+This will download and install Deno to `~/.deno/bin/deno`. You may need to add this to your PATH:
+
+```bash
+export DENO_INSTALL="$HOME/.deno"
+export PATH="$DENO_INSTALL/bin:$PATH"
+```
+
+Add these lines to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.) to make them permanent.
+
+### PowerShell (Windows)
+
+For Windows users, the PowerShell installer is the recommended approach:
+
+```powershell
+irm https://deno.land/install.ps1 | iex
+```
+
+The installer will add Deno to your PATH automatically.
+
+### Homebrew (macOS)
+
+If you have [Homebrew](https://brew.sh/) installed:
+
+```bash
+brew install deno
+```
+
+Homebrew will automatically manage updates via `brew upgrade deno`.
+
+### Package Managers (Windows)
+
+Windows users have several package manager options:
+
+<Tabs>
+  <Tab title="Chocolatey">
+    ```powershell
+    choco install deno
+    ```
+  </Tab>
+  
+  <Tab title="WinGet">
+    ```powershell
+    winget install --id=DenoLand.Deno
+    ```
+  </Tab>
+  
+  <Tab title="Scoop">
+    ```powershell
+    scoop install main/deno
+    ```
+  </Tab>
+</Tabs>
+
+## Verify Installation
+
+After installation, verify that Deno is installed correctly:
+
+```bash
+deno --version
+```
+
+You should see output similar to:
+
+```
+deno 1.x.x (release, x86_64-apple-darwin)
+v8 11.x.x
+typescript 5.x.x
+```
+
+## Build from Source
+
+For developers who want to build Deno from source, complete instructions are available in the [Contributing Guide](https://github.com/denoland/deno/blob/main/.github/CONTRIBUTING.md#building-from-source).
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/denoland/deno.git
+    cd deno
+    ```
+  </Step>
+  
+  <Step title="Install Prerequisites">
+    You'll need Rust, Python 3, and other build tools. See the contributing guide for detailed requirements.
+  </Step>
+  
+  <Step title="Build Deno">
+    ```bash
+    cargo build --release
+    ```
+    
+    The compiled binary will be at `./target/release/deno`.
+  </Step>
+</Steps>
+
+## Updating Deno
+
+Deno includes a built-in upgrade command:
+
+```bash
+deno upgrade
+```
+
+This will download and install the latest version of Deno.
+
+To upgrade to a specific version:
+
+```bash
+deno upgrade --version 1.40.0
+```
+
+To upgrade to a canary (pre-release) version:
+
+```bash
+deno upgrade --canary
+```
+
+## Uninstalling Deno
+
+To uninstall Deno, simply remove the executable and configuration directory:
+
+<Tabs>
+  <Tab title="macOS / Linux">
+    ```bash
+    rm -rf ~/.deno
+    ```
+    
+    Then remove the PATH exports from your shell profile.
+  </Tab>
+  
+  <Tab title="Windows">
+    ```powershell
+    Remove-Item -Recurse -Force "$env:USERPROFILE\.deno"
+    ```
+  </Tab>
+</Tabs>
+
+If you installed via a package manager, use the package manager's uninstall command:
+
+```bash
+# Homebrew
+brew uninstall deno
+
+# Chocolatey
+choco uninstall deno
+
+# WinGet
+winget uninstall DenoLand.Deno
+
+# Scoop
+scoop uninstall deno
+```
+
+## Environment Setup
+
+For the best development experience, consider setting these environment variables:
+
+```bash
+# Set the Deno installation directory (if using shell installer)
+export DENO_INSTALL="$HOME/.deno"
+export PATH="$DENO_INSTALL/bin:$PATH"
+
+# Configure Deno cache location (optional)
+export DENO_DIR="$HOME/.cache/deno"
+```
+
+## Editor Setup
+
+For the best development experience, install the Deno extension for your editor:
+
+- **VS Code**: [Deno extension](https://marketplace.visualstudio.com/items?itemName=denoland.vscode-deno)
+- **JetBrains IDEs**: Built-in Deno support
+- **Vim/Neovim**: [vim-deno](https://github.com/vim-denops/denops.vim)
+- **Emacs**: [deno-emacs](https://github.com/justinbarclay/deno-emacs)
+
+## Next Steps
+
+Now that you have Deno installed, let's build your first program:
+
+<Card title="Quickstart Tutorial" icon="rocket" href="/quickstart">
+  Build and run your first Deno program in minutes
+</Card>

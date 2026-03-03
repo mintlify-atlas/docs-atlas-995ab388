@@ -1,0 +1,197 @@
+---
+title: deno remove
+description: Remove dependencies from your Deno project
+---
+
+The `deno remove` command removes dependencies from your project's configuration file.
+
+## Usage
+
+```bash
+deno remove [OPTIONS] <PACKAGES...>
+```
+
+## Description
+
+Removes packages from your `deno.json` imports or `package.json` dependencies. The command:
+- Removes the dependency from your configuration file
+- Updates the lockfile
+- Removes unused packages from cache
+
+The command searches both `deno.json` and `package.json` (if present) for the specified packages.
+
+## Arguments
+
+<ParamField path="PACKAGES" type="string[]" required>
+  One or more package names or aliases to remove. Can be:
+  - Package name: `@std/assert`
+  - Import alias: `my-assert`
+  - With prefix: `jsr:@std/assert` or `npm:express`
+</ParamField>
+
+## Options
+
+<ParamField path="--lockfile-only" type="boolean" default="false">
+  Only update the lockfile, don't remove packages from cache.
+</ParamField>
+
+## Examples
+
+### Remove a package by name
+
+```bash
+deno remove @std/assert
+```
+
+This removes from `deno.json`:
+```json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0"  // <- removed
+  }
+}
+```
+
+### Remove multiple packages
+
+```bash
+deno remove @std/assert express chalk
+```
+
+### Remove by alias
+
+If you added with an alias:
+```bash
+deno add my-assert@jsr:@std/assert
+```
+
+Remove with the alias:
+```bash
+deno remove my-assert
+```
+
+### Remove with prefix
+
+```bash
+deno remove jsr:@std/assert
+deno remove npm:express
+```
+
+### Only update lockfile
+
+```bash
+deno remove --lockfile-only @std/assert
+```
+
+## Behavior with Multiple Config Files
+
+If both `deno.json` and `package.json` exist, the command:
+1. Searches for the package in both files
+2. Removes it from any file where it's found
+3. Reports which package was removed
+
+### Example with both configs
+
+`deno.json`:
+```json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0"
+  }
+}
+```
+
+`package.json`:
+```json
+{
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
+```
+
+Running:
+```bash
+deno remove @std/assert express
+```
+
+Removes `@std/assert` from `deno.json` and `express` from `package.json`.
+
+## Removing from devDependencies
+
+The command automatically searches both `dependencies` and `devDependencies` in `package.json`:
+
+```bash
+deno remove typescript
+```
+
+This removes `typescript` from `devDependencies` if present.
+
+## What Gets Removed
+
+### From deno.json
+- Entries in the `imports` map
+- Empty `imports` object is preserved
+
+### From package.json
+- Entries in `dependencies`
+- Entries in `devDependencies`  
+- Empty objects are preserved
+
+## After Removal
+
+After removing packages, the command automatically:
+1. Updates the lockfile to remove unused entries
+2. Cleans up cached packages (unless `--lockfile-only`)
+3. Reports which packages were removed
+
+## Error Cases
+
+### Package not found
+
+If a package isn't found in any configuration file:
+```bash
+deno remove nonexistent-package
+# Output: No packages were removed
+```
+
+### No configuration file
+
+If neither `deno.json` nor `package.json` exists:
+```bash
+deno remove @std/assert
+# Error: No configuration file found
+```
+
+## Examples with Workspace
+
+In a workspace, the command operates on the current directory's configuration:
+
+```bash
+# From workspace root
+deno remove @std/assert
+
+# From a package directory
+cd packages/my-package
+deno remove express
+```
+
+## Comparison with npm
+
+Similar to npm/yarn remove:
+
+| npm/yarn | Deno |
+|----------|------|
+| `npm remove express` | `deno remove express` |
+| `npm remove -D typescript` | `deno remove typescript` (automatically finds in devDependencies) |
+| `yarn remove @types/node` | `deno remove @types/node` |
+
+## Notes
+
+- The command is idempotent - running it multiple times has the same effect
+- Removing a package doesn't affect other packages that may depend on it
+- The lockfile is automatically updated after removal
+- Unused cached packages are cleaned up (improves disk usage)

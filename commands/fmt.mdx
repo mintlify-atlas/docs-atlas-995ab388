@@ -1,0 +1,229 @@
+---
+title: deno fmt
+description: Format source files using Deno's built-in code formatter
+---
+
+The `deno fmt` command formats source files using Deno's opinionated code formatter based on dprint.
+
+## Usage
+
+```bash
+deno fmt [OPTIONS] [FILES]...
+```
+
+## Basic Examples
+
+```bash
+# Format all supported files in current directory
+deno fmt
+
+# Format specific files
+deno fmt src/main.ts
+
+# Format multiple files
+deno fmt src/ tests/
+
+# Check if files are formatted (don't write)
+deno fmt --check
+
+# Format stdin
+cat file.ts | deno fmt -
+```
+
+## Supported File Types
+
+Deno's formatter supports:
+- TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`)
+- JavaScript (`.js`, `.jsx`, `.mjs`, `.cjs`)
+- JSON (`.json`, `.jsonc`)
+- Markdown (`.md`, `.markdown`)
+
+## Check Mode
+
+<ParamField path="--check" type="boolean">
+  Check if files are formatted without writing changes
+  
+  ```bash
+  # Check formatting
+  deno fmt --check
+  
+  # Exit code 0 if formatted, 1 if not
+  deno fmt --check src/
+  ```
+</ParamField>
+
+<ParamField path="--fail-fast" type="boolean">
+  Stop checking after first unformatted file
+  
+  ```bash
+  deno fmt --check --fail-fast
+  ```
+</ParamField>
+
+## Watch Mode
+
+<ParamField path="--watch" type="string">
+  Watch for file changes and format automatically
+  
+  ```bash
+  # Watch mode
+  deno fmt --watch
+  
+  # Watch specific paths
+  deno fmt --watch=src/
+  ```
+</ParamField>
+
+<ParamField path="--no-clear-screen" type="boolean">
+  Don't clear the screen on watch mode restart
+</ParamField>
+
+## Formatting Options
+
+<ParamField path="--use-tabs" type="boolean">
+  Use tabs instead of spaces for indentation
+  
+  ```bash
+  deno fmt --use-tabs
+  ```
+</ParamField>
+
+<ParamField path="--line-width" type="number">
+  Set the maximum line width (default: 80)
+  
+  ```bash
+  deno fmt --line-width=120
+  ```
+</ParamField>
+
+<ParamField path="--indent-width" type="number">
+  Set the number of spaces for indentation (default: 2)
+  
+  ```bash
+  deno fmt --indent-width=4
+  ```
+</ParamField>
+
+<ParamField path="--single-quote" type="boolean">
+  Use single quotes instead of double quotes
+  
+  ```bash
+  deno fmt --single-quote
+  ```
+</ParamField>
+
+<ParamField path="--prose-wrap" type="string">
+  How to wrap prose in markdown (always, never, preserve)
+  
+  ```bash
+  deno fmt --prose-wrap=always
+  ```
+</ParamField>
+
+<ParamField path="--no-semicolons" type="boolean">
+  Don't use semicolons except where necessary
+  
+  ```bash
+  deno fmt --no-semicolons
+  ```
+</ParamField>
+
+## File Filtering
+
+<ParamField path="--ignore" type="string">
+  Ignore files or directories
+  
+  ```bash
+  deno fmt --ignore=build/,dist/
+  ```
+</ParamField>
+
+## Configuration
+
+Formatting options can be configured in `deno.json`:
+
+```json
+{
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 80,
+    "indentWidth": 2,
+    "singleQuote": false,
+    "proseWrap": "preserve",
+    "include": ["src/"],
+    "exclude": ["dist/", "build/"]
+  }
+}
+```
+
+## Ignoring Code
+
+### Ignore File
+
+Add a comment at the top of the file:
+
+```typescript
+// deno-fmt-ignore-file
+
+const    unformatted   =    "code";
+```
+
+### Ignore Next Line
+
+```typescript
+// deno-fmt-ignore
+const    unformatted   =    "code";
+```
+
+### Ignore Range
+
+```typescript
+// deno-fmt-ignore-start
+const    unformatted   =    "code";
+let      another       =    "value";
+// deno-fmt-ignore-end
+```
+
+## Examples
+
+### Format Specific Extensions
+
+```bash
+# Format only TypeScript files
+deno fmt **/*.ts
+
+# Format only JSON files
+deno fmt **/*.json
+```
+
+### CI/CD Integration
+
+```bash
+# Check formatting in CI
+deno fmt --check || exit 1
+
+# Format and show diff
+deno fmt --check 2>&1 | tee format-report.txt
+```
+
+### Pre-commit Hook
+
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+
+if ! deno fmt --check; then
+  echo "Please run 'deno fmt' before committing"
+  exit 1
+fi
+```
+
+### Format with Custom Settings
+
+```bash
+# Format with custom line width and single quotes
+deno fmt --line-width=120 --single-quote src/
+
+# Format with tabs
+deno fmt --use-tabs --indent-width=4 src/
+```

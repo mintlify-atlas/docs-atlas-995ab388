@@ -1,0 +1,313 @@
+---
+title: Network APIs
+description: Deno network APIs for TCP, UDP, TLS connections and DNS resolution
+---
+
+Deno provides comprehensive networking capabilities including TCP/UDP connections, TLS support, and DNS resolution.
+
+## DNS Resolution
+
+### Deno.resolveDns()
+
+Performs DNS resolution against the given query, returning resolved records.
+
+```typescript
+function resolveDns(
+  query: string,
+  recordType: RecordType,
+  options?: ResolveDnsOptions
+): Promise<string[] | Record[]>
+```
+
+<ParamField path="query" type="string" required>
+  The domain name to resolve
+</ParamField>
+
+<ParamField path="recordType" type="RecordType" required>
+  The type of DNS record to query. Supported types: `"A"`, `"AAAA"`, `"ANAME"`, `"CAA"`, `"CNAME"`, `"MX"`, `"NAPTR"`, `"NS"`, `"PTR"`, `"SOA"`, `"SRV"`, `"TXT"`
+</ParamField>
+
+<ParamField path="options.nameServer" type="object">
+  The name server to use for lookups. Defaults to system configuration.
+</ParamField>
+
+<ParamField path="options.nameServer.ipAddr" type="string">
+  The IP address of the name server
+</ParamField>
+
+<ParamField path="options.nameServer.port" type="number" default="53">
+  The port number the query will be sent to
+</ParamField>
+
+<ParamField path="options.signal" type="AbortSignal">
+  An abort signal to allow cancellation of the DNS resolution operation
+</ParamField>
+
+**Example:**
+
+```typescript
+// Query A records
+const a = await Deno.resolveDns("example.com", "A");
+console.log(a); // ["93.184.216.34"]
+
+// Query AAAA records with custom name server
+const aaaa = await Deno.resolveDns("example.com", "AAAA", {
+  nameServer: { ipAddr: "8.8.8.8", port: 53 },
+});
+
+// Query MX records
+const mx = await Deno.resolveDns("example.com", "MX");
+console.log(mx); // [{ preference: 10, exchange: "mail.example.com" }]
+```
+
+Requires `allow-net` permission.
+
+## Network Interfaces
+
+### Deno.networkInterfaces()
+
+Returns an array of the network interface information.
+
+```typescript
+function networkInterfaces(): NetworkInterfaceInfo[]
+```
+
+<ResponseField name="name" type="string">
+  The network interface name
+</ResponseField>
+
+<ResponseField name="family" type="'IPv4' | 'IPv6'">
+  The IP protocol version
+</ResponseField>
+
+<ResponseField name="address" type="string">
+  The IP address bound to the interface
+</ResponseField>
+
+<ResponseField name="netmask" type="string">
+  The netmask applied to the interface
+</ResponseField>
+
+<ResponseField name="scopeid" type="number | null">
+  The IPv6 scope id or null
+</ResponseField>
+
+<ResponseField name="cidr" type="string">
+  The CIDR range
+</ResponseField>
+
+<ResponseField name="mac" type="string">
+  The MAC address
+</ResponseField>
+
+**Example:**
+
+```typescript
+const interfaces = Deno.networkInterfaces();
+console.log(interfaces);
+// [
+//   {
+//     name: "en0",
+//     family: "IPv4",
+//     address: "192.168.1.100",
+//     netmask: "255.255.255.0",
+//     scopeid: null,
+//     cidr: "192.168.1.100/24",
+//     mac: "00:11:22:33:44:55"
+//   }
+// ]
+```
+
+Requires `allow-sys` permission.
+
+## Address Types
+
+Deno supports multiple address types for network connections:
+
+### NetAddr
+
+Represents a TCP or UDP network address.
+
+```typescript
+interface NetAddr {
+  transport: "tcp" | "udp";
+  hostname: string;
+  port: number;
+}
+```
+
+### UnixAddr
+
+Represents a Unix domain socket address.
+
+```typescript
+interface UnixAddr {
+  transport: "unix" | "unixpacket";
+  path: string;
+}
+```
+
+### VsockAddr
+
+Represents a VSOCK address for VM communication.
+
+```typescript
+interface VsockAddr {
+  transport: "vsock";
+  cid: number;
+  port: number;
+}
+```
+
+## Working with Network Addresses
+
+```typescript
+// TCP address
+const tcpAddr: Deno.NetAddr = {
+  transport: "tcp",
+  hostname: "127.0.0.1",
+  port: 8080
+};
+
+// Unix domain socket
+const unixAddr: Deno.UnixAddr = {
+  transport: "unix",
+  path: "/tmp/my.sock"
+};
+
+// VSOCK address (for VM communication)
+const vsockAddr: Deno.VsockAddr = {
+  transport: "vsock",
+  cid: 3,
+  port: 1234
+};
+```
+
+## DNS Record Types
+
+### A and AAAA Records
+
+```typescript
+const ipv4 = await Deno.resolveDns("example.com", "A");
+// Returns: string[] - IPv4 addresses
+
+const ipv6 = await Deno.resolveDns("example.com", "AAAA");
+// Returns: string[] - IPv6 addresses
+```
+
+### MX Records
+
+```typescript
+interface MxRecord {
+  preference: number;
+  exchange: string;
+}
+
+const mx = await Deno.resolveDns("example.com", "MX");
+// Returns: MxRecord[]
+```
+
+### SRV Records
+
+```typescript
+interface SrvRecord {
+  priority: number;
+  weight: number;
+  port: number;
+  target: string;
+}
+
+const srv = await Deno.resolveDns("_http._tcp.example.com", "SRV");
+// Returns: SrvRecord[]
+```
+
+### CAA Records
+
+```typescript
+interface CaaRecord {
+  critical: boolean;
+  tag: string;
+  value: string;
+}
+
+const caa = await Deno.resolveDns("example.com", "CAA");
+// Returns: CaaRecord[]
+```
+
+### SOA Records
+
+```typescript
+interface SoaRecord {
+  mname: string;
+  rname: string;
+  serial: number;
+  refresh: number;
+  retry: number;
+  expire: number;
+  minimum: number;
+}
+
+const soa = await Deno.resolveDns("example.com", "SOA");
+// Returns: SoaRecord[]
+```
+
+### TXT Records
+
+```typescript
+const txt = await Deno.resolveDns("example.com", "TXT");
+// Returns: string[][] - Array of text record arrays
+```
+
+## Error Handling
+
+Network operations can fail for various reasons. Always handle errors appropriately:
+
+```typescript
+try {
+  const records = await Deno.resolveDns("nonexistent.invalid", "A");
+} catch (error) {
+  if (error instanceof Deno.errors.NotFound) {
+    console.error("Domain not found");
+  } else if (error instanceof Deno.errors.TimedOut) {
+    console.error("DNS query timed out");
+  } else {
+    console.error("DNS resolution failed:", error);
+  }
+}
+```
+
+## Canceling Operations
+
+Use AbortSignal to cancel network operations:
+
+```typescript
+const controller = new AbortController();
+const { signal } = controller;
+
+// Cancel after 5 seconds
+setTimeout(() => controller.abort(), 5000);
+
+try {
+  const records = await Deno.resolveDns("example.com", "A", { signal });
+  console.log(records);
+} catch (error) {
+  if (error.name === "AbortError") {
+    console.log("DNS query was cancelled");
+  }
+}
+```
+
+## Permissions
+
+Network operations require the `--allow-net` permission:
+
+```bash
+# Allow all network access
+deno run --allow-net script.ts
+
+# Allow access to specific hosts
+deno run --allow-net=example.com,api.github.com script.ts
+
+# System info requires allow-sys
+deno run --allow-sys script.ts
+```

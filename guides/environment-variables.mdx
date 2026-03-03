@@ -1,0 +1,466 @@
+---
+title: Environment Variables
+description: Learn how to use environment variables in Deno, including reading, writing, permissions, and best practices for managing configuration.
+---
+
+Deno provides secure access to environment variables through the `Deno.env` API and Node.js compatibility via `node:process`. Environment variables require explicit permissions to access.
+
+## Reading Environment Variables
+
+### Using Deno.env
+
+```typescript
+// Get a single variable
+const apiKey = Deno.env.get("API_KEY");
+
+if (apiKey === undefined) {
+  console.error("API_KEY not set");
+  Deno.exit(1);
+}
+
+// Get with fallback
+const port = Deno.env.get("PORT") ?? "3000";
+const nodeEnv = Deno.env.get("NODE_ENV") ?? "development";
+
+console.log(`Server will run on port ${port}`);
+```
+
+### Using Node.js Compatibility
+
+```typescript
+import process from "node:process";
+
+// Access environment variables
+const apiKey = process.env.API_KEY;
+const port = process.env.PORT ?? "3000";
+
+// All variables as object
+console.log(process.env);
+```
+
+## Setting Environment Variables
+
+### Using Deno.env
+
+```typescript
+// Set a variable
+Deno.env.set("LOG_LEVEL", "debug");
+
+// Set multiple variables
+Deno.env.set("API_URL", "https://api.example.com");
+Deno.env.set("TIMEOUT", "5000");
+
+// Verify
+console.log(Deno.env.get("LOG_LEVEL")); // "debug"
+```
+
+### Using Node.js Compatibility
+
+```typescript
+import process from "node:process";
+
+// Set variables
+process.env.LOG_LEVEL = "debug";
+process.env.API_URL = "https://api.example.com";
+```
+
+## Deleting Environment Variables
+
+```typescript
+// Delete a variable
+Deno.env.delete("TEMP_VAR");
+
+// Verify deletion
+console.log(Deno.env.get("TEMP_VAR")); // undefined
+```
+
+## Getting All Variables
+
+```typescript
+// Get all environment variables as object
+const allVars = Deno.env.toObject();
+
+console.log(allVars);
+// { PATH: "...", HOME: "...", API_KEY: "...", ... }
+
+// Iterate over all variables
+for (const [key, value] of Object.entries(Deno.env.toObject())) {
+  console.log(`${key}=${value}`);
+}
+```
+
+## Environment Permissions
+
+Accessing environment variables requires the `--allow-env` permission:
+
+### Grant All Environment Access
+
+```bash
+deno run --allow-env script.ts
+```
+
+### Grant Specific Variables
+
+```bash
+# Allow specific variables
+deno run --allow-env=API_KEY,DATABASE_URL script.ts
+
+# Allow multiple variables
+deno run --allow-env=PORT,NODE_ENV,LOG_LEVEL script.ts
+```
+
+### Configure in deno.json
+
+```json deno.json
+{
+  "tasks": {
+    "dev": "deno run --allow-env=API_KEY,PORT main.ts",
+    "prod": "deno run --allow-env main.ts"
+  },
+  "permissions": {
+    "default": {
+      "env": ["API_KEY", "DATABASE_URL", "PORT"]
+    },
+    "dev": {
+      "env": true
+    }
+  }
+}
+```
+
+## Using .env Files
+
+Deno doesn't load `.env` files automatically. Use the standard library or npm packages:
+
+### Using Deno Standard Library
+
+```typescript
+import { load } from "jsr:@std/dotenv";
+
+// Load .env file
+const env = await load();
+
+console.log(env.API_KEY);
+console.log(env.DATABASE_URL);
+
+// Load and export to Deno.env
+await load({ export: true });
+
+// Now accessible via Deno.env
+console.log(Deno.env.get("API_KEY"));
+```
+
+### Custom .env File Location
+
+```typescript
+import { load } from "jsr:@std/dotenv";
+
+// Load from specific file
+const env = await load({
+  envPath: "./.env.production",
+  export: true,
+});
+```
+
+### Multiple .env Files
+
+```typescript
+import { load } from "jsr:@std/dotenv";
+
+// Load defaults
+await load({ envPath: ".env.defaults", export: true });
+
+// Load environment-specific (overrides defaults)
+const nodeEnv = Deno.env.get("NODE_ENV") ?? "development";
+await load({ envPath: `.env.${nodeEnv}`, export: true });
+
+// Load local overrides (gitignored)
+await load({ envPath: ".env.local", export: true });
+```
+
+### Example .env File
+
+```bash .env
+# API Configuration
+API_KEY=your-api-key-here
+API_URL=https://api.example.com
+API_TIMEOUT=5000
+
+# Database
+DATABASE_URL=postgresql://user:pass@localhost:5432/db
+DATABASE_POOL_SIZE=10
+
+# Server
+PORT=3000
+NODE_ENV=development
+LOG_LEVEL=debug
+
+# Features
+ENABLE_ANALYTICS=true
+ENABLE_CACHE=false
+```
+
+## Configuration Pattern
+
+Create a centralized configuration module:
+
+```typescript config.ts
+import { load } from "jsr:@std/dotenv";
+
+// Load .env file
+await load({ export: true });
+
+// Validate and provide defaults
+export const config = {
+  // API
+  apiKey: requireEnv("API_KEY"),
+  apiUrl: Deno.env.get("API_URL") ?? "https://api.example.com",
+  apiTimeout: parseInt(Deno.env.get("API_TIMEOUT") ?? "5000"),
+
+  // Database
+  databaseUrl: requireEnv("DATABASE_URL"),
+  databasePoolSize: parseInt(Deno.env.get("DATABASE_POOL_SIZE") ?? "10"),
+
+  // Server
+  port: parseInt(Deno.env.get("PORT") ?? "3000"),
+  nodeEnv: Deno.env.get("NODE_ENV") ?? "development",
+  logLevel: Deno.env.get("LOG_LEVEL") ?? "info",
+
+  // Features (convert to boolean)
+  enableAnalytics: Deno.env.get("ENABLE_ANALYTICS") === "true",
+  enableCache: Deno.env.get("ENABLE_CACHE") === "true",
+} as const;
+
+function requireEnv(key: string): string {
+  const value = Deno.env.get(key);
+  if (value === undefined) {
+    throw new Error(`Required environment variable ${key} is not set`);
+  }
+  return value;
+}
+
+// Type-safe environment
+export type Config = typeof config;
+```
+
+Use in your application:
+
+```typescript main.ts
+import { config } from "./config.ts";
+
+console.log(`Starting server on port ${config.port}`);
+console.log(`Environment: ${config.nodeEnv}`);
+console.log(`API URL: ${config.apiUrl}`);
+
+if (config.enableAnalytics) {
+  console.log("Analytics enabled");
+}
+```
+
+## Using Zod for Validation
+
+Validate environment variables with Zod:
+
+```typescript config.ts
+import { load } from "jsr:@std/dotenv";
+import { z } from "npm:zod@^3.22.0";
+
+await load({ export: true });
+
+const envSchema = z.object({
+  API_KEY: z.string().min(1),
+  API_URL: z.string().url(),
+  API_TIMEOUT: z.string().transform(Number).pipe(z.number().positive()),
+  
+  DATABASE_URL: z.string().url(),
+  DATABASE_POOL_SIZE: z.string().transform(Number).pipe(z.number().positive()),
+  
+  PORT: z.string().transform(Number).pipe(z.number().min(1).max(65535)),
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  
+  ENABLE_ANALYTICS: z.string().transform((v) => v === "true").default("false"),
+  ENABLE_CACHE: z.string().transform((v) => v === "true").default("false"),
+});
+
+export const config = envSchema.parse(Deno.env.toObject());
+```
+
+## Environment-Specific Configuration
+
+<Tabs>
+  <Tab title="Development">
+    ```bash .env.development
+    NODE_ENV=development
+    LOG_LEVEL=debug
+    API_URL=http://localhost:8000
+    ENABLE_CACHE=false
+    ENABLE_HOT_RELOAD=true
+    ```
+  </Tab>
+  
+  <Tab title="Production">
+    ```bash .env.production
+    NODE_ENV=production
+    LOG_LEVEL=warn
+    API_URL=https://api.example.com
+    ENABLE_CACHE=true
+    ENABLE_HOT_RELOAD=false
+    ```
+  </Tab>
+  
+  <Tab title="Testing">
+    ```bash .env.test
+    NODE_ENV=test
+    LOG_LEVEL=error
+    API_URL=http://localhost:9000
+    DATABASE_URL=postgresql://localhost:5432/test_db
+    ```
+  </Tab>
+</Tabs>
+
+Load based on environment:
+
+```typescript
+import { load } from "jsr:@std/dotenv";
+
+const env = Deno.env.get("DENO_ENV") ?? "development";
+await load({ envPath: `.env.${env}`, export: true });
+```
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Never commit secrets">
+    Add `.env` files to `.gitignore`:
+    ```bash .gitignore
+    .env
+    .env.local
+    .env.*.local
+    ```
+    
+    Commit a template instead:
+    ```bash .env.example
+    API_KEY=your-api-key-here
+    DATABASE_URL=postgresql://user:pass@localhost:5432/db
+    PORT=3000
+    ```
+  </Accordion>
+  
+  <Accordion title="Use specific permissions">
+    Grant access only to needed variables:
+    ```bash
+    deno run --allow-env=API_KEY,PORT main.ts
+    ```
+  </Accordion>
+  
+  <Accordion title="Validate all inputs">
+    Always validate and sanitize environment variables:
+    ```typescript
+    const port = parseInt(Deno.env.get("PORT") ?? "3000");
+    if (isNaN(port) || port < 1 || port > 65535) {
+      throw new Error("Invalid PORT");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use secret management in production">
+    Consider using:
+    - AWS Secrets Manager
+    - HashiCorp Vault
+    - Deno Deploy environment variables
+    - Cloud provider secret stores
+  </Accordion>
+</AccordionGroup>
+
+## Testing with Environment Variables
+
+```typescript config_test.ts
+import { assertEquals } from "jsr:@std/assert";
+
+Deno.test("config loads with valid env", () => {
+  // Set test environment
+  Deno.env.set("API_KEY", "test-key");
+  Deno.env.set("PORT", "8000");
+  
+  // Test configuration loading
+  const apiKey = Deno.env.get("API_KEY");
+  assertEquals(apiKey, "test-key");
+  
+  // Clean up
+  Deno.env.delete("API_KEY");
+  Deno.env.delete("PORT");
+});
+
+Deno.test("config provides defaults", () => {
+  const port = Deno.env.get("PORT") ?? "3000";
+  assertEquals(port, "3000");
+});
+```
+
+## Deno Deploy Environment Variables
+
+When deploying to Deno Deploy, set environment variables in the dashboard or via CLI:
+
+```bash
+# Set via deployctl
+deployctl deploy --env=API_KEY=your-key --env=DATABASE_URL=postgres://...
+```
+
+Or configure in `deno.json`:
+
+```json deno.json
+{
+  "deploy": {
+    "project": "my-project",
+    "env": {
+      "API_URL": "https://api.example.com",
+      "LOG_LEVEL": "info"
+    }
+  }
+}
+```
+
+## Example: Complete Configuration System
+
+```typescript config.ts
+import { load } from "jsr:@std/dotenv";
+import { z } from "npm:zod@^3.22.0";
+
+// Load .env file if it exists
+try {
+  await load({ export: true });
+} catch {
+  // .env file optional in production
+  console.warn("No .env file found, using environment variables");
+}
+
+// Define schema with validation
+const configSchema = z.object({
+  nodeEnv: z.enum(["development", "production", "test"]),
+  port: z.number().min(1).max(65535),
+  apiKey: z.string().min(1),
+  apiUrl: z.string().url(),
+  databaseUrl: z.string().url(),
+  logLevel: z.enum(["debug", "info", "warn", "error"]),
+  enableCache: z.boolean(),
+});
+
+// Parse and validate
+const rawConfig = {
+  nodeEnv: Deno.env.get("NODE_ENV") ?? "development",
+  port: parseInt(Deno.env.get("PORT") ?? "3000"),
+  apiKey: Deno.env.get("API_KEY") ?? "",
+  apiUrl: Deno.env.get("API_URL") ?? "https://api.example.com",
+  databaseUrl: Deno.env.get("DATABASE_URL") ?? "",
+  logLevel: Deno.env.get("LOG_LEVEL") ?? "info",
+  enableCache: Deno.env.get("ENABLE_CACHE") === "true",
+};
+
+try {
+  export const config = configSchema.parse(rawConfig);
+} catch (error) {
+  console.error("Configuration validation failed:", error);
+  Deno.exit(1);
+}
+```

@@ -1,0 +1,266 @@
+---
+title: BroadcastChannel extension
+description: Inter-context messaging with the BroadcastChannel API
+---
+
+# BroadcastChannel extension
+
+The BroadcastChannel extension (`ext/broadcast_channel/`) implements the [BroadcastChannel API](https://html.spec.whatwg.org/multipage/web-messaging.html#broadcasting-to-other-browsing-contexts) for Deno, enabling simple communication between different execution contexts.
+
+<Note>
+This extension has been deprecated and merged into [deno_web](https://crates.io/crates/deno_web). The BroadcastChannel API is now part of the web extension.
+</Note>
+
+## Overview
+
+The BroadcastChannel API allows different browsing contexts (windows, tabs, frames, or workers) that share the same origin to communicate with each other by sending and receiving messages.
+
+In Deno, this enables communication between:
+- Multiple workers
+- Main runtime and workers
+- Different execution contexts within the same origin
+
+## Basic usage
+
+### Creating a broadcast channel
+
+```typescript
+// Create a channel with a specific name
+const channel = new BroadcastChannel("my-channel");
+
+console.log("Channel created:", channel.name);
+```
+
+### Sending messages
+
+```typescript
+const channel = new BroadcastChannel("notifications");
+
+// Send a message to all subscribers
+channel.postMessage({ type: "update", data: "Hello, world!" });
+
+// Send complex data structures
+channel.postMessage({
+  timestamp: Date.now(),
+  payload: { value: 42 },
+  items: [1, 2, 3],
+});
+```
+
+### Receiving messages
+
+```typescript
+const channel = new BroadcastChannel("notifications");
+
+// Listen for messages
+channel.onmessage = (event) => {
+  console.log("Received:", event.data);
+};
+
+// Alternative: using addEventListener
+channel.addEventListener("message", (event) => {
+  console.log("Message:", event.data);
+});
+```
+
+### Closing a channel
+
+```typescript
+const channel = new BroadcastChannel("my-channel");
+
+// Close the channel when done
+channel.close();
+```
+
+## Worker communication example
+
+### Main script
+
+```typescript
+const channel = new BroadcastChannel("worker-channel");
+
+// Listen for worker responses
+channel.onmessage = (event) => {
+  console.log("Worker says:", event.data);
+};
+
+// Create a worker
+const worker = new Worker(new URL("./worker.ts", import.meta.url).href, {
+  type: "module",
+});
+
+// Send message to all listeners (including the worker)
+channel.postMessage({ command: "start", id: 123 });
+```
+
+### Worker script (worker.ts)
+
+```typescript
+const channel = new BroadcastChannel("worker-channel");
+
+// Listen for messages from main
+channel.onmessage = (event) => {
+  console.log("Main says:", event.data);
+  
+  // Process the command
+  if (event.data.command === "start") {
+    // Send response
+    channel.postMessage({ status: "started", id: event.data.id });
+  }
+};
+```
+
+## Multi-worker coordination
+
+```typescript
+// coordinator.ts
+const channel = new BroadcastChannel("task-queue");
+
+// Listen for task completions
+let completedTasks = 0;
+channel.onmessage = (event) => {
+  if (event.data.type === "task-complete") {
+    completedTasks++;
+    console.log(`Task ${event.data.taskId} completed by worker ${event.data.workerId}`);
+    console.log(`Total completed: ${completedTasks}`);
+  }
+};
+
+// Distribute tasks to workers
+for (let i = 0; i < 10; i++) {
+  channel.postMessage({
+    type: "new-task",
+    taskId: i,
+    data: { /* task data */ },
+  });
+}
+
+// worker.ts (multiple instances)
+const workerId = Math.random().toString(36).slice(2);
+const channel = new BroadcastChannel("task-queue");
+
+channel.onmessage = async (event) => {
+  if (event.data.type === "new-task") {
+    // Process the task
+    await processTask(event.data.data);
+    
+    // Notify completion
+    channel.postMessage({
+      type: "task-complete",
+      taskId: event.data.taskId,
+      workerId,
+    });
+  }
+};
+
+function processTask(data: unknown) {
+  // Task processing logic
+  return new Promise(resolve => setTimeout(resolve, 1000));
+}
+```
+
+## API reference
+
+### BroadcastChannel constructor
+
+```typescript
+const channel = new BroadcastChannel(name: string);
+```
+
+<ParamField path="name" type="string" required>
+  The name of the channel. All BroadcastChannel instances with the same name can communicate with each other.
+</ParamField>
+
+### Properties
+
+<ResponseField name="name" type="string">
+  The name of the channel (read-only).
+</ResponseField>
+
+### Methods
+
+<ResponseField name="postMessage" type="(message: any) => void">
+  Sends a message to all BroadcastChannel instances subscribed to the same channel name. The message is cloned using the structured clone algorithm.
+</ResponseField>
+
+<ResponseField name="close" type="() => void">
+  Closes the BroadcastChannel, disconnecting it from the underlying channel. After calling close(), the object will no longer receive messages.
+</ResponseField>
+
+### Events
+
+<ResponseField name="onmessage" type="(event: MessageEvent) => void">
+  Event handler called when a message is received on the channel.
+</ResponseField>
+
+<ResponseField name="onmessageerror" type="(event: MessageEvent) => void">
+  Event handler called when a message cannot be deserialized.
+</ResponseField>
+
+## Structured clone algorithm
+
+Messages sent via `postMessage()` are cloned using the structured clone algorithm, which supports:
+
+- Primitive values (string, number, boolean, null, undefined)
+- Objects and arrays
+- Date, RegExp, Map, Set
+- ArrayBuffer, TypedArrays
+- Blob, File
+
+<Warning>
+Functions, DOM nodes, and objects with prototypes cannot be cloned and will throw an error.
+</Warning>
+
+## Best practices
+
+<AccordionGroup>
+  <Accordion title="Close channels when done">
+    Always call `close()` on channels you no longer need to prevent memory leaks:
+    
+    ```typescript
+    const channel = new BroadcastChannel("temp");
+    // ... use channel ...
+    channel.close();
+    ```
+  </Accordion>
+  
+  <Accordion title="Use unique channel names">
+    Choose descriptive, unique channel names to avoid conflicts:
+    
+    ```typescript
+    // Good
+    new BroadcastChannel("app:notifications:v1");
+    
+    // Avoid
+    new BroadcastChannel("channel");
+    ```
+  </Accordion>
+  
+  <Accordion title="Handle errors gracefully">
+    Add error handling for message deserialization:
+    
+    ```typescript
+    channel.onmessageerror = (event) => {
+      console.error("Failed to deserialize message", event);
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Validate message structure">
+    Always validate incoming messages:
+    
+    ```typescript
+    channel.onmessage = (event) => {
+      if (typeof event.data === "object" && event.data.type) {
+        // Process valid message
+      }
+    };
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related documentation
+
+- [Web extension](/api/extensions/web)
+- [Extensions overview](/api/extensions/overview)
+- [Web Workers](/api/web-platform-apis#web-workers)

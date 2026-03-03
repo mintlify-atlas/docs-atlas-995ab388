@@ -1,0 +1,396 @@
+---
+title: Permissions System
+description: Deno's secure-by-default permission model that protects system resources
+---
+
+## Overview
+
+Deno is secure by default. Scripts cannot access files, network, or environment variables without explicit permission. This design prevents malicious code from accessing sensitive resources on your system.
+
+<Warning>
+Without permissions, Deno code runs in a sandbox with no access to:
+- Filesystem (read or write)
+- Network connections
+- Environment variables
+- System information
+- Subprocesses
+</Warning>
+
+## Permission Types
+
+Deno implements several permission categories:
+
+### Filesystem Permissions
+
+**--allow-read**: Allow file system read access
+
+```bash
+# Allow reading from any location
+deno run --allow-read script.ts
+
+# Allow reading from specific directory
+deno run --allow-read=/etc script.ts
+
+# Allow multiple paths
+deno run --allow-read=/etc,/var/log script.ts
+```
+
+**--allow-write**: Allow file system write access
+
+```bash
+# Allow writing to any location
+deno run --allow-write script.ts
+
+# Allow writing to specific directory
+deno run --allow-write=./data script.ts
+```
+
+### Network Permissions
+
+**--allow-net**: Allow network access
+
+```bash
+# Allow all network access
+deno run --allow-net server.ts
+
+# Allow specific domains
+deno run --allow-net=deno.land,api.github.com script.ts
+
+# Allow specific ports
+deno run --allow-net=localhost:8000 server.ts
+```
+
+<CodeGroup>
+```typescript Checking Network Permission
+const status = await Deno.permissions.query({ name: "net" });
+
+if (status.state === "granted") {
+  const response = await fetch("https://deno.land");
+}
+```
+
+```typescript Requesting Permission
+const status = await Deno.permissions.request({ 
+  name: "net", 
+  host: "api.github.com" 
+});
+
+if (status.state === "granted") {
+  // Permission granted, proceed
+}
+```
+</CodeGroup>
+
+### Environment Permissions
+
+**--allow-env**: Allow environment variable access
+
+```bash
+# Allow all environment access
+deno run --allow-env script.ts
+
+# Allow specific variables
+deno run --allow-env=HOME,PATH script.ts
+```
+
+```typescript
+// Requires --allow-env=API_KEY
+const apiKey = Deno.env.get("API_KEY");
+```
+
+### System Permissions
+
+**--allow-sys**: Allow system information access
+
+```bash
+# Allow all system info
+deno run --allow-sys script.ts
+
+# Allow specific system info
+deno run --allow-sys=osRelease,hostname script.ts
+```
+
+### Subprocess Permissions
+
+**--allow-run**: Allow running subprocesses
+
+```bash
+# Allow running any command
+deno run --allow-run script.ts
+
+# Allow specific commands
+deno run --allow-run=git,npm script.ts
+```
+
+<CodeGroup>
+```typescript Running Subprocess
+// Requires --allow-run=git
+const command = new Deno.Command("git", {
+  args: ["status"],
+});
+
+const { code, stdout } = await command.output();
+```
+</CodeGroup>
+
+### FFI Permissions
+
+**--allow-ffi**: Allow loading dynamic libraries
+
+```bash
+# Allow FFI for specific library
+deno run --allow-ffi=./lib.so script.ts
+```
+
+### Import Permissions
+
+**--allow-import**: Allow importing from specific hosts
+
+```bash
+# Allow imports from specific hosts
+deno run --allow-import=deno.land/std script.ts
+```
+
+## Permission States
+
+From the source code (`runtime/permissions/lib.rs`), permissions have multiple states:
+
+```typescript
+type PermissionState =
+  | "granted"        // Permission fully granted
+  | "denied"         // Permission denied
+  | "prompt"         // Will prompt user (default)
+```
+
+<Info>
+When a script requires a permission in "prompt" state, Deno will interactively ask the user whether to grant or deny access.
+</Info>
+
+## Permission API
+
+Deno provides a runtime API for working with permissions:
+
+### Querying Permissions
+
+```typescript
+// Query a permission status
+const readStatus = await Deno.permissions.query({ 
+  name: "read", 
+  path: "/etc" 
+});
+
+console.log(readStatus.state); // "granted" | "denied" | "prompt"
+```
+
+### Requesting Permissions
+
+```typescript
+// Request permission at runtime
+const netStatus = await Deno.permissions.request({ 
+  name: "net",
+  host: "api.example.com"
+});
+
+if (netStatus.state === "granted") {
+  await fetch("https://api.example.com/data");
+}
+```
+
+### Revoking Permissions
+
+```typescript
+// Revoke a previously granted permission
+const status = await Deno.permissions.revoke({ 
+  name: "net" 
+});
+
+console.log(status.state); // "prompt"
+```
+
+### Listening for Permission Changes
+
+```typescript
+const status = await Deno.permissions.query({ name: "net" });
+
+status.addEventListener("change", () => {
+  console.log(`Permission changed to: ${status.state}`);
+});
+```
+
+## Permission Descriptors
+
+From `runtime/js/10_permissions.js`, the available permission descriptors are:
+
+<CodeGroup>
+```typescript Read/Write Permissions
+interface ReadWritePermissionDescriptor {
+  name: "read" | "write" | "ffi";
+  path?: string | URL;
+}
+```
+
+```typescript Network Permission
+interface NetPermissionDescriptor {
+  name: "net";
+  host?: string;
+}
+```
+
+```typescript Environment Permission
+interface EnvPermissionDescriptor {
+  name: "env";
+  variable?: string;
+}
+```
+
+```typescript System Permission
+interface SysPermissionDescriptor {
+  name: "sys";
+  kind?: "hostname" | "osRelease" | "osUptime" | "loadavg" | "networkInterfaces" | "systemMemoryInfo" | "uid" | "gid";
+}
+```
+
+```typescript Run Permission
+interface RunPermissionDescriptor {
+  name: "run";
+  command?: string | URL;
+}
+```
+</CodeGroup>
+
+## Grant All Permissions
+
+For development, you can grant all permissions:
+
+```bash
+deno run -A script.ts
+# or
+deno run --allow-all script.ts
+```
+
+<Warning>
+Never use `--allow-all` in production or with untrusted code. Always grant minimal required permissions.
+</Warning>
+
+## Denying Permissions
+
+You can explicitly deny permissions to prevent accidental access:
+
+```bash
+# Deny network access to specific hosts
+deno run --deny-net=malicious.com script.ts
+
+# Deny write access to sensitive directories
+deno run --allow-write --deny-write=/etc script.ts
+```
+
+## Worker Permissions
+
+Web Workers can inherit or restrict parent permissions:
+
+```typescript
+// Worker inherits parent permissions
+const worker = new Worker(
+  new URL("./worker.ts", import.meta.url).href,
+  { type: "module" }
+);
+
+// Worker with restricted permissions
+const restrictedWorker = new Worker(
+  new URL("./worker.ts", import.meta.url).href,
+  { 
+    type: "module",
+    deno: {
+      permissions: {
+        net: false,
+        read: ["./data"]
+      }
+    }
+  }
+);
+```
+
+## Compile-time Permissions
+
+When compiling executables, specify permissions at compile time:
+
+```bash
+deno compile --allow-net --allow-read=./data server.ts
+```
+
+These permissions are embedded in the executable and cannot be changed later.
+
+## Permission Prompts
+
+When running in interactive mode (TTY), Deno prompts for permissions:
+
+```
+⚠️  ┌ Deno requests net access to "deno.land".
+   ├ Requested by `fetch()` API.
+   ├ Run again with --allow-net to bypass this prompt.
+   └ Allow? [y/n/A] (y = yes, allow; n = no, deny; A = allow all net permissions) >
+```
+
+<Info>
+Permission prompts include the specific resource being accessed and the API that triggered the request.
+</Info>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Principle of Least Privilege">
+    Grant only the minimum permissions required:
+    ```bash
+    # Good: Specific permissions
+    deno run --allow-read=./config --allow-net=api.example.com script.ts
+    
+    # Bad: Overly broad permissions
+    deno run --allow-all script.ts
+    ```
+  </Accordion>
+
+  <Accordion title="Use Permission API in Libraries">
+    Check permissions before attempting operations:
+    ```typescript
+    export async function saveData(data: string) {
+      const status = await Deno.permissions.query({ 
+        name: "write", 
+        path: "./data" 
+      });
+      
+      if (status.state !== "granted") {
+        throw new Error("Write permission required");
+      }
+      
+      await Deno.writeTextFile("./data/file.txt", data);
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Document Required Permissions">
+    Always document what permissions your script needs:
+    ```typescript
+    /**
+     * Fetches user data from the API
+     * 
+     * Required permissions:
+     * - --allow-net=api.example.com
+     * - --allow-env=API_KEY
+     */
+    export async function getUserData() {
+      // ...
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Security Considerations
+
+- Permissions are checked on **every** privileged operation
+- No permission escalation after startup (except via permission API)
+- Subprocesses do **not** inherit parent permissions
+- Dynamic imports require import permission for remote modules
+
+<Card title="Related" icon="link">
+See [Runtime Architecture](/concepts/runtime) for how permissions are enforced at the runtime level.
+</Card>

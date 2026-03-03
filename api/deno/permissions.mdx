@@ -1,0 +1,498 @@
+---
+title: Permission APIs
+description: Deno permission management APIs for querying, requesting, and revoking permissions
+---
+
+Deno's permission system provides fine-grained control over what resources your code can access. The `Deno.permissions` API allows you to query, request, and revoke permissions at runtime.
+
+## Permission Names
+
+Deno supports the following permission types:
+
+- `run` - Execute subprocesses
+- `read` - Read from the file system
+- `write` - Write to the file system
+- `net` - Make network requests
+- `env` - Access environment variables
+- `sys` - Access system information
+- `ffi` - Load foreign function interface libraries
+
+## Deno.permissions
+
+The global `Deno.permissions` object provides methods to interact with the permission system.
+
+```typescript
+const permissions: Permissions
+```
+
+## Query Permissions
+
+### permissions.query()
+
+Resolves to the current status of a permission.
+
+```typescript
+query(desc: PermissionDescriptor): Promise<PermissionStatus>
+```
+
+<ParamField path="desc" type="PermissionDescriptor" required>
+  The permission descriptor to query
+</ParamField>
+
+**Example:**
+
+```typescript
+const status = await Deno.permissions.query({ name: "read", path: "/etc" });
+console.log(status.state); // "granted", "denied", or "prompt"
+```
+
+### permissions.querySync()
+
+Synchronously returns the current status of a permission.
+
+```typescript
+querySync(desc: PermissionDescriptor): PermissionStatus
+```
+
+**Example:**
+
+```typescript
+const status = Deno.permissions.querySync({ name: "read", path: "/etc" });
+console.log(status.state);
+```
+
+## Request Permissions
+
+### permissions.request()
+
+Requests a permission. If the permission is already granted, the user will not be prompted again.
+
+```typescript
+request(desc: PermissionDescriptor): Promise<PermissionStatus>
+```
+
+**Example:**
+
+```typescript
+const status = await Deno.permissions.request({ name: "env" });
+if (status.state === "granted") {
+  console.log("'env' permission is granted.");
+} else {
+  console.log("'env' permission is denied.");
+}
+```
+
+### permissions.requestSync()
+
+Synchronously requests a permission.
+
+```typescript
+requestSync(desc: PermissionDescriptor): PermissionStatus
+```
+
+**Example:**
+
+```typescript
+const status = Deno.permissions.requestSync({ name: "env" });
+if (status.state === "granted") {
+  console.log("'env' permission is granted.");
+}
+```
+
+## Revoke Permissions
+
+### permissions.revoke()
+
+Revokes a permission.
+
+```typescript
+revoke(desc: PermissionDescriptor): Promise<PermissionStatus>
+```
+
+**Example:**
+
+```typescript
+import { assert } from "jsr:@std/assert";
+
+const status = await Deno.permissions.revoke({ name: "run" });
+assert(status.state !== "granted");
+```
+
+### permissions.revokeSync()
+
+Synchronously revokes a permission.
+
+```typescript
+revokeSync(desc: PermissionDescriptor): PermissionStatus
+```
+
+## Permission Descriptors
+
+### Run Permission
+
+Controls access to executing subprocesses.
+
+```typescript
+interface RunPermissionDescriptor {
+  name: "run";
+  command?: string | URL;
+}
+```
+
+**Example:**
+
+```typescript
+// Query permission to run any command
+const status = await Deno.permissions.query({ name: "run" });
+
+// Query permission to run a specific command
+const status2 = await Deno.permissions.query({ 
+  name: "run",
+  command: "deno"
+});
+```
+
+### Read Permission
+
+Controls access to reading from the file system.
+
+```typescript
+interface ReadPermissionDescriptor {
+  name: "read";
+  path?: string | URL;
+}
+```
+
+**Example:**
+
+```typescript
+// Query permission to read any path
+const status = await Deno.permissions.query({ name: "read" });
+
+// Query permission to read a specific path
+const status2 = await Deno.permissions.query({ 
+  name: "read",
+  path: "/etc"
+});
+```
+
+### Write Permission
+
+Controls access to writing to the file system.
+
+```typescript
+interface WritePermissionDescriptor {
+  name: "write";
+  path?: string | URL;
+}
+```
+
+**Example:**
+
+```typescript
+const status = await Deno.permissions.query({ 
+  name: "write",
+  path: "/tmp"
+});
+```
+
+### Net Permission
+
+Controls access to network operations.
+
+```typescript
+interface NetPermissionDescriptor {
+  name: "net";
+  host?: string;
+}
+```
+
+**Example:**
+
+```typescript
+// Query permission for all network access
+const status = await Deno.permissions.query({ name: "net" });
+
+// Query permission for specific host
+const status2 = await Deno.permissions.query({ 
+  name: "net",
+  host: "deno.land:443"
+});
+```
+
+### Env Permission
+
+Controls access to environment variables.
+
+```typescript
+interface EnvPermissionDescriptor {
+  name: "env";
+  variable?: string;
+}
+```
+
+**Example:**
+
+```typescript
+// Query permission for all environment variables
+const status = await Deno.permissions.query({ name: "env" });
+
+// Query permission for specific variable
+const status2 = await Deno.permissions.query({ 
+  name: "env",
+  variable: "HOME"
+});
+```
+
+### Sys Permission
+
+Controls access to system information.
+
+```typescript
+interface SysPermissionDescriptor {
+  name: "sys";
+  kind?: "loadavg" | "hostname" | "systemMemoryInfo" | 
+         "networkInterfaces" | "osRelease" | "osUptime" |
+         "uid" | "gid" | "username" | "cpus" | "homedir" |
+         "statfs" | "getPriority" | "setPriority";
+}
+```
+
+**Example:**
+
+```typescript
+const status = await Deno.permissions.query({ 
+  name: "sys",
+  kind: "hostname"
+});
+```
+
+### FFI Permission
+
+Controls access to loading foreign function interface libraries.
+
+```typescript
+interface FfiPermissionDescriptor {
+  name: "ffi";
+  path?: string | URL;
+}
+```
+
+**Example:**
+
+```typescript
+const status = await Deno.permissions.query({ 
+  name: "ffi",
+  path: "./libexample.so"
+});
+```
+
+## PermissionStatus
+
+Represents the status of a permission.
+
+```typescript
+class PermissionStatus extends EventTarget {
+  readonly state: PermissionState;
+  readonly partial: boolean;
+  onchange: ((this: PermissionStatus, ev: Event) => any) | null;
+}
+```
+
+<ResponseField name="state" type="'granted' | 'denied' | 'prompt'">
+  The current state of the permission
+</ResponseField>
+
+<ResponseField name="partial" type="boolean">
+  Indicates if permission is only granted partially. For example, read access to `/foo` but denied for `/foo/bar`
+</ResponseField>
+
+<ResponseField name="onchange" type="EventHandler">
+  Event handler called when the permission state changes
+</ResponseField>
+
+### Permission States
+
+- `"granted"` - The permission has been granted
+- `"denied"` - The permission has been explicitly denied
+- `"prompt"` - The permission has not been explicitly granted nor denied
+
+### Watching Permission Changes
+
+```typescript
+const status = await Deno.permissions.query({ name: "read", path: "/etc" });
+
+status.addEventListener("change", () => {
+  console.log("Permission state changed to:", status.state);
+});
+
+// Or use onchange
+status.onchange = () => {
+  console.log("Permission state changed to:", status.state);
+};
+```
+
+## Examples
+
+### Requesting Multiple Permissions
+
+```typescript
+async function requestPermissions() {
+  const permissions = [
+    { name: "read" as const, path: "./data" },
+    { name: "write" as const, path: "./output" },
+    { name: "net" as const, host: "api.example.com" },
+  ];
+
+  for (const perm of permissions) {
+    const status = await Deno.permissions.request(perm);
+    if (status.state !== "granted") {
+      console.error(`Permission denied: ${JSON.stringify(perm)}`);
+      Deno.exit(1);
+    }
+  }
+}
+
+await requestPermissions();
+```
+
+### Checking Before File Operations
+
+```typescript
+async function readConfigFile(path: string) {
+  const status = await Deno.permissions.query({ name: "read", path });
+  
+  if (status.state === "granted") {
+    return await Deno.readTextFile(path);
+  } else if (status.state === "prompt") {
+    const requested = await Deno.permissions.request({ name: "read", path });
+    if (requested.state === "granted") {
+      return await Deno.readTextFile(path);
+    }
+  }
+  
+  throw new Error(`Permission denied to read ${path}`);
+}
+```
+
+### Temporarily Elevating Permissions
+
+```typescript
+async function withTemporaryPermission<T>(
+  desc: Deno.PermissionDescriptor,
+  fn: () => Promise<T>
+): Promise<T> {
+  // Request permission
+  const status = await Deno.permissions.request(desc);
+  
+  if (status.state !== "granted") {
+    throw new Error("Permission denied");
+  }
+  
+  try {
+    return await fn();
+  } finally {
+    // Revoke permission after use
+    await Deno.permissions.revoke(desc);
+  }
+}
+
+// Usage
+await withTemporaryPermission(
+  { name: "read", path: "./secret.txt" },
+  async () => {
+    const data = await Deno.readTextFile("./secret.txt");
+    console.log(data);
+  }
+);
+```
+
+### Checking All Permissions
+
+```typescript
+async function checkAllPermissions() {
+  const permissions = [
+    { name: "read" as const },
+    { name: "write" as const },
+    { name: "net" as const },
+    { name: "env" as const },
+    { name: "run" as const },
+    { name: "ffi" as const },
+    { name: "sys" as const },
+  ];
+
+  for (const perm of permissions) {
+    const status = await Deno.permissions.query(perm);
+    console.log(`${perm.name}: ${status.state}`);
+  }
+}
+
+await checkAllPermissions();
+```
+
+## Command-Line Permission Flags
+
+Permissions can be granted via command-line flags:
+
+```bash
+# Grant all permissions
+deno run --allow-all script.ts
+deno run -A script.ts
+
+# Grant specific permissions
+deno run --allow-read --allow-write script.ts
+
+# Grant scoped permissions
+deno run --allow-read=/etc --allow-write=/tmp script.ts
+deno run --allow-net=deno.land,api.github.com script.ts
+
+# Deny specific permissions (takes precedence over allow)
+deno run --allow-read --deny-read=/etc script.ts
+
+# Prompt for permissions
+deno run script.ts  # Will prompt when needed
+deno run --no-prompt script.ts  # Will fail if permission needed
+```
+
+## Permission Options in Tests
+
+You can specify permissions for individual tests:
+
+```typescript
+Deno.test({
+  name: "test with specific permissions",
+  permissions: {
+    read: true,
+    write: ["/tmp"],
+    net: ["deno.land"],
+  },
+  fn() {
+    // Test code with granted permissions
+  },
+});
+
+Deno.test({
+  name: "test with no permissions",
+  permissions: "none",
+  fn() {
+    // Test code with no permissions
+  },
+});
+
+Deno.test({
+  name: "test inheriting permissions",
+  permissions: "inherit",
+  fn() {
+    // Test code with inherited permissions
+  },
+});
+```
+
+## Best Practices
+
+1. **Principle of Least Privilege**: Only request the minimum permissions necessary
+2. **Scope Permissions**: Use scoped permissions (e.g., specific paths or hosts) when possible
+3. **Request Early**: Request permissions early in your application's lifecycle
+4. **Handle Denials**: Always handle the case where permissions are denied
+5. **Revoke When Done**: Revoke permissions when they're no longer needed
+6. **Document Requirements**: Clearly document what permissions your application needs

@@ -1,0 +1,613 @@
+---
+title: Writing Benchmarks
+description: Learn how to write and run benchmarks in Deno to measure performance, compare implementations, and track performance regressions.
+---
+
+Deno includes a built-in benchmarking tool that allows you to measure the performance of your code and track changes over time.
+
+## Basic Benchmarking
+
+### Writing Your First Benchmark
+
+```typescript math_bench.ts
+Deno.bench("addition", () => {
+  const result = 2 + 2;
+});
+
+Deno.bench("string concatenation", () => {
+  const result = "hello" + " " + "world";
+});
+```
+
+Run benchmarks:
+
+```bash
+deno bench
+```
+
+### Benchmark File Naming
+
+Deno automatically discovers benchmark files matching:
+- `*_bench.ts`
+- `*_bench.tsx`
+- `*_bench.js`
+- `*_bench.jsx`
+- `*.bench.ts`
+- `*.bench.tsx`
+- `*.bench.js`
+- `*.bench.jsx`
+
+## Benchmark Structure
+
+### Basic Format
+
+```typescript
+Deno.bench("benchmark name", () => {
+  // Code to benchmark
+});
+```
+
+### With Options
+
+```typescript
+Deno.bench({
+  name: "array operations",
+  fn: () => {
+    const arr = Array.from({ length: 1000 }, (_, i) => i);
+    arr.map((x) => x * 2);
+  },
+});
+```
+
+### Async Benchmarks
+
+```typescript
+Deno.bench("async fetch", async () => {
+  await fetch("https://example.com");
+});
+
+Deno.bench({
+  name: "async operation",
+  async fn() {
+    const data = await loadData();
+    processData(data);
+  },
+});
+```
+
+## Benchmark Groups
+
+Compare different implementations:
+
+```typescript
+import { assertEquals } from "jsr:@std/assert";
+
+// Group: String building methods
+Deno.bench({
+  name: "concatenation",
+  group: "string-building",
+  fn: () => {
+    let result = "";
+    for (let i = 0; i < 100; i++) {
+      result += "a";
+    }
+  },
+});
+
+Deno.bench({
+  name: "array join",
+  group: "string-building",
+  fn: () => {
+    const parts: string[] = [];
+    for (let i = 0; i < 100; i++) {
+      parts.push("a");
+    }
+    const result = parts.join("");
+  },
+});
+
+Deno.bench({
+  name: "template literal",
+  group: "string-building",
+  baseline: true, // Mark as baseline for comparison
+  fn: () => {
+    const parts: string[] = [];
+    for (let i = 0; i < 100; i++) {
+      parts.push("a");
+    }
+    const result = `${parts.join("")}`;
+  },
+});
+```
+
+## Baseline and Comparison
+
+```typescript
+Deno.bench({
+  name: "for loop",
+  group: "iteration",
+  baseline: true,
+  fn: () => {
+    const arr = Array.from({ length: 1000 }, (_, i) => i);
+    let sum = 0;
+    for (let i = 0; i < arr.length; i++) {
+      sum += arr[i];
+    }
+  },
+});
+
+Deno.bench({
+  name: "forEach",
+  group: "iteration",
+  fn: () => {
+    const arr = Array.from({ length: 1000 }, (_, i) => i);
+    let sum = 0;
+    arr.forEach((x) => {
+      sum += x;
+    });
+  },
+});
+
+Deno.bench({
+  name: "reduce",
+  group: "iteration",
+  fn: () => {
+    const arr = Array.from({ length: 1000 }, (_, i) => i);
+    const sum = arr.reduce((acc, x) => acc + x, 0);
+  },
+});
+```
+
+## Warmup
+
+Enable warmup iterations to get more stable results:
+
+```typescript
+Deno.bench({
+  name: "heavy computation",
+  warmup: true,
+  fn: () => {
+    // Complex calculation
+    const result = heavyComputation();
+  },
+});
+```
+
+## Permissions
+
+Specify permissions for benchmarks:
+
+```typescript
+Deno.bench({
+  name: "file read",
+  permissions: { read: true },
+  async fn() {
+    await Deno.readTextFile("data.txt");
+  },
+});
+
+Deno.bench({
+  name: "network request",
+  permissions: { net: ["api.example.com"] },
+  async fn() {
+    await fetch("https://api.example.com");
+  },
+});
+```
+
+## Ignoring Benchmarks
+
+```typescript
+Deno.bench({
+  name: "work in progress",
+  ignore: true,
+  fn: () => {
+    // This benchmark will be skipped
+  },
+});
+
+// Conditionally ignore
+Deno.bench({
+  name: "macOS only",
+  ignore: Deno.build.os !== "darwin",
+  fn: () => {
+    // Only runs on macOS
+  },
+});
+```
+
+## Explicit Timers
+
+Manually control timing for setup/teardown:
+
+```typescript
+Deno.bench("with setup", (b) => {
+  // Setup (not measured)
+  const data = prepareData();
+
+  // Start timing
+  b.start();
+
+  // Code to measure
+  processData(data);
+
+  // Stop timing
+  b.end();
+
+  // Cleanup (not measured)
+  cleanup();
+});
+```
+
+## Configuration
+
+### Configure in deno.json
+
+```json deno.json
+{
+  "bench": {
+    "include": ["benchmarks/**/*_bench.ts"],
+    "exclude": ["benchmarks/fixtures/"]
+  }
+}
+```
+
+### Named Permissions
+
+```json deno.json
+{
+  "permissions": {
+    "bench-all": {
+      "read": true,
+      "write": true,
+      "net": true
+    }
+  },
+  "bench": {
+    "permissions": "bench-all"
+  }
+}
+```
+
+## Running Benchmarks
+
+### Basic Commands
+
+```bash
+# Run all benchmarks
+deno bench
+
+# Run specific file
+deno bench string_bench.ts
+
+# Run with filter
+deno bench --filter "string"
+
+# Run benchmarks in directory
+deno bench benchmarks/
+```
+
+### Output Formats
+
+```bash
+# Console output (default)
+deno bench
+
+# JSON output
+deno bench --json > results.json
+
+# Quiet mode (summary only)
+deno bench --quiet
+```
+
+## Real-World Examples
+
+### Array Operations
+
+```typescript array_bench.ts
+Deno.bench({
+  name: "Array.map",
+  group: "array-transform",
+  baseline: true,
+  fn: () => {
+    const arr = Array.from({ length: 10000 }, (_, i) => i);
+    const result = arr.map((x) => x * 2);
+  },
+});
+
+Deno.bench({
+  name: "for loop",
+  group: "array-transform",
+  fn: () => {
+    const arr = Array.from({ length: 10000 }, (_, i) => i);
+    const result: number[] = [];
+    for (let i = 0; i < arr.length; i++) {
+      result.push(arr[i] * 2);
+    }
+  },
+});
+
+Deno.bench({
+  name: "Array.from with map",
+  group: "array-transform",
+  fn: () => {
+    const arr = Array.from({ length: 10000 }, (_, i) => i * 2);
+  },
+});
+```
+
+### JSON Parsing
+
+```typescript json_bench.ts
+const smallJSON = JSON.stringify({ name: "Alice", age: 30 });
+const largeJSON = JSON.stringify(
+  Array.from({ length: 1000 }, (_, i) => ({
+    id: i,
+    name: `User ${i}`,
+    email: `user${i}@example.com`,
+  }))
+);
+
+Deno.bench({
+  name: "small JSON parse",
+  group: "json-parse",
+  baseline: true,
+  fn: () => {
+    JSON.parse(smallJSON);
+  },
+});
+
+Deno.bench({
+  name: "large JSON parse",
+  group: "json-parse",
+  fn: () => {
+    JSON.parse(largeJSON);
+  },
+});
+
+Deno.bench({
+  name: "small JSON stringify",
+  group: "json-stringify",
+  baseline: true,
+  fn: () => {
+    JSON.stringify({ name: "Alice", age: 30 });
+  },
+});
+```
+
+### String Operations
+
+```typescript string_bench.ts
+Deno.bench({
+  name: "string concatenation",
+  group: "string-ops",
+  baseline: true,
+  fn: () => {
+    let result = "";
+    for (let i = 0; i < 1000; i++) {
+      result += "a";
+    }
+  },
+});
+
+Deno.bench({
+  name: "string template",
+  group: "string-ops",
+  fn: () => {
+    const parts: string[] = [];
+    for (let i = 0; i < 1000; i++) {
+      parts.push("a");
+    }
+    const result = `${parts.join("")}`;
+  },
+});
+
+Deno.bench({
+  name: "Array.join",
+  group: "string-ops",
+  fn: () => {
+    const parts: string[] = [];
+    for (let i = 0; i < 1000; i++) {
+      parts.push("a");
+    }
+    const result = parts.join("");
+  },
+});
+```
+
+### Async Operations
+
+```typescript async_bench.ts
+Deno.bench({
+  name: "Promise.all - parallel",
+  group: "async",
+  baseline: true,
+  async fn() {
+    await Promise.all([
+      delay(10),
+      delay(10),
+      delay(10),
+    ]);
+  },
+});
+
+Deno.bench({
+  name: "sequential await",
+  group: "async",
+  async fn() {
+    await delay(10);
+    await delay(10);
+    await delay(10);
+  },
+});
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+```
+
+## Comparing Implementations
+
+```typescript implementation_bench.ts
+// Implementation 1: Recursive
+function fibRecursive(n: number): number {
+  if (n <= 1) return n;
+  return fibRecursive(n - 1) + fibRecursive(n - 2);
+}
+
+// Implementation 2: Iterative
+function fibIterative(n: number): number {
+  if (n <= 1) return n;
+  let prev = 0, curr = 1;
+  for (let i = 2; i <= n; i++) {
+    [prev, curr] = [curr, prev + curr];
+  }
+  return curr;
+}
+
+// Implementation 3: Memoized
+const memo = new Map<number, number>();
+function fibMemo(n: number): number {
+  if (n <= 1) return n;
+  if (memo.has(n)) return memo.get(n)!;
+  const result = fibMemo(n - 1) + fibMemo(n - 2);
+  memo.set(n, result);
+  return result;
+}
+
+const N = 20;
+
+Deno.bench({
+  name: "fibonacci recursive",
+  group: "fibonacci",
+  baseline: true,
+  fn: () => {
+    fibRecursive(N);
+  },
+});
+
+Deno.bench({
+  name: "fibonacci iterative",
+  group: "fibonacci",
+  fn: () => {
+    fibIterative(N);
+  },
+});
+
+Deno.bench({
+  name: "fibonacci memoized",
+  group: "fibonacci",
+  fn: () => {
+    memo.clear();
+    fibMemo(N);
+  },
+});
+```
+
+## Tracking Performance
+
+### Save Results
+
+```bash
+# Save JSON output
+deno bench --json > results/$(date +%Y%m%d).json
+
+# Compare with previous results
+deno bench --json > current.json
+diff <(jq '.' previous.json) <(jq '.' current.json)
+```
+
+### CI Integration
+
+```yaml .github/workflows/bench.yml
+name: Benchmarks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v1
+      
+      - name: Run benchmarks
+        run: deno bench --json > bench-results.json
+      
+      - name: Store results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results
+          path: bench-results.json
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Isolate benchmarks" icon="box">
+    Each benchmark should test one specific thing
+  </Card>
+  
+  <Card title="Use groups" icon="layer-group">
+    Group related benchmarks for easy comparison
+  </Card>
+  
+  <Card title="Set baselines" icon="ruler">
+    Mark a baseline to compare other implementations against
+  </Card>
+  
+  <Card title="Warmup when needed" icon="fire">
+    Enable warmup for more stable results
+  </Card>
+  
+  <Card title="Meaningful data sizes" icon="database">
+    Use realistic data sizes that match production
+  </Card>
+  
+  <Card title="Run multiple times" icon="repeat">
+    Deno automatically runs benchmarks multiple times for accuracy
+  </Card>
+</CardGroup>
+
+## Configuration Example
+
+```json deno.json
+{
+  "tasks": {
+    "bench": "deno bench",
+    "bench:json": "deno bench --json > benchmarks/results.json",
+    "bench:filter": "deno bench --filter"
+  },
+  "bench": {
+    "include": [
+      "benchmarks/**/*_bench.ts",
+      "src/**/*.bench.ts"
+    ],
+    "exclude": [
+      "benchmarks/fixtures/"
+    ]
+  }
+}
+```
+
+## Understanding Results
+
+Benchmark output shows:
+- **Iterations**: Number of times the benchmark ran
+- **Time/iteration**: Average time per iteration
+- **Throughput**: Operations per second
+- **Min/Max/Avg**: Statistical summary
+- **Percentiles**: P75, P99, P995, P999 for distribution analysis
+
+Example output:
+```
+cpu: Apple M1
+runtime: deno 2.0.0 (aarch64-apple-darwin)
+
+array-transform/Array.map           10,234 runs     97.8 µs/run  (baseline)
+array-transform/for loop            11,456 runs     87.3 µs/run  (11% faster)
+array-transform/Array.from          12,789 runs     78.2 µs/run  (20% faster)
+```

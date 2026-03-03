@@ -1,0 +1,478 @@
+---
+title: Linting and Formatting
+description: Learn how to use Deno's built-in linter and formatter to maintain code quality and consistent style across your projects.
+---
+
+Deno includes built-in tools for linting and formatting your code, eliminating the need for external dependencies like ESLint or Prettier.
+
+## Formatting with deno fmt
+
+### Basic Usage
+
+```bash
+# Format all supported files in current directory
+deno fmt
+
+# Format specific files
+deno fmt src/main.ts
+
+# Format multiple files
+deno fmt src/main.ts src/utils.ts
+
+# Format directory
+deno fmt src/
+
+# Check formatting without making changes
+deno fmt --check
+```
+
+### Supported File Types
+
+Deno's formatter supports:
+- TypeScript (`.ts`, `.tsx`)
+- JavaScript (`.js`, `.jsx`, `.mjs`)
+- JSON (`.json`, `.jsonc`)
+- Markdown (`.md`, `.markdown`)
+
+### Configuration
+
+Configure formatting in `deno.json`:
+
+```json deno.json
+{
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 80,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false,
+    "proseWrap": "always",
+    "include": ["src/"],
+    "exclude": ["src/generated/"]
+  }
+}
+```
+
+### Formatting Options
+
+<AccordionGroup>
+  <Accordion title="Basic Options">
+    - `useTabs` - Use tabs instead of spaces (default: `false`)
+    - `lineWidth` - Maximum line width (default: `80`)
+    - `indentWidth` - Number of spaces per indent (default: `2`)
+    - `singleQuote` - Use single quotes (default: `false`)
+    - `semiColons` - Add semicolons (default: `true`)
+  </Accordion>
+  
+  <Accordion title="Advanced Options">
+    - `proseWrap` - How to wrap prose in Markdown: `"always"`, `"never"`, `"preserve"` (default: `"always"`)
+    - `quoteProps` - When to quote object properties: `"asNeeded"`, `"consistent"`, `"preserve"` (default: `"preserve"`)
+    - `newLineKind` - Newline character: `"auto"`, `"crlf"`, `"lf"`, `"system"` (default: `"lf"`)
+  </Accordion>
+  
+  <Accordion title="Brace Styles">
+    - `useBraces` - Use braces for single-line blocks: `"maintain"`, `"whenNotSingleLine"`, `"always"`, `"preferNone"` (default: `"whenNotSingleLine"`)
+    - `bracePosition` - Opening brace position: `"maintain"`, `"sameLine"`, `"nextLine"`, `"sameLineUnlessHanging"` (default: `"sameLine"`)
+    - `singleBodyPosition` - Single body position: `"maintain"`, `"sameLine"`, `"nextLine"`, `"sameLineUnlessHanging"` (default: `"sameLineUnlessHanging"`)
+    - `nextControlFlowPosition` - Next control flow position: `"maintain"`, `"sameLine"`, `"nextLine"` (default: `"sameLine"`)
+  </Accordion>
+  
+  <Accordion title="JSX Options">
+    - `jsx.bracketPosition` - JSX bracket position: `"maintain"`, `"sameLine"`, `"nextLine"` (default: `"nextLine"`)
+    - `jsx.forceNewLineSurroundingContent` - Force newlines around JSX content (default: `false`)
+    - `jsx.multiLineParens` - Wrap multi-line JSX in parentheses: `"never"`, `"prefer"`, `"always"` (default: `"prefer"`)
+  </Accordion>
+  
+  <Accordion title="Other Options">
+    - `operatorPosition` - Binary operator position: `"maintain"`, `"sameLine"`, `"nextLine"` (default: `"sameLine"`)
+    - `trailingCommas` - Add trailing commas: `"never"`, `"always"`, `"onlyMultiLine"` (default: `"onlyMultiLine"`)
+    - `spaceAround` - Spaces around enclosed expressions (default: `false`)
+    - `spaceSurroundingProperties` - Spaces in object literals (default: `true`)
+  </Accordion>
+</AccordionGroup>
+
+### Include/Exclude Files
+
+```json deno.json
+{
+  "fmt": {
+    "include": [
+      "src/**/*.ts",
+      "tests/**/*.ts"
+    ],
+    "exclude": [
+      "src/generated/",
+      "dist/",
+      "coverage/"
+    ]
+  }
+}
+```
+
+### Ignore Formatting
+
+Use comments to ignore specific code:
+
+```typescript
+// deno-fmt-ignore
+const matrix = [
+  [1,  2,  3],
+  [4,  5,  6],
+  [7,  8,  9],
+];
+
+// deno-fmt-ignore-file
+// Entire file will not be formatted
+```
+
+## Linting with deno lint
+
+### Basic Usage
+
+```bash
+# Lint all files in current directory
+deno lint
+
+# Lint specific files
+deno lint src/main.ts
+
+# Lint directory
+deno lint src/
+
+# Show rule documentation
+deno lint --rules
+```
+
+### Configuration
+
+```json deno.json
+{
+  "lint": {
+    "include": ["src/"],
+    "exclude": ["src/generated/"],
+    "rules": {
+      "tags": ["recommended"],
+      "include": ["ban-untagged-todo"],
+      "exclude": ["no-unused-vars"]
+    },
+    "report": "pretty"
+  }
+}
+```
+
+### Rule Configuration
+
+<Tabs>
+  <Tab title="Using Tags">
+    ```json deno.json
+    {
+      "lint": {
+        "rules": {
+          "tags": ["recommended"]
+        }
+      }
+    }
+    ```
+    
+    Available tags:
+    - `recommended` - Recommended rules for most projects
+    - `fresh` - Rules for Fresh framework
+  </Tab>
+  
+  <Tab title="Include Specific Rules">
+    ```json deno.json
+    {
+      "lint": {
+        "rules": {
+          "tags": ["recommended"],
+          "include": [
+            "ban-untagged-todo",
+            "no-await-in-sync-fn",
+            "explicit-function-return-type"
+          ]
+        }
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Exclude Rules">
+    ```json deno.json
+    {
+      "lint": {
+        "rules": {
+          "tags": ["recommended"],
+          "exclude": [
+            "no-unused-vars",
+            "no-explicit-any"
+          ]
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Available Rules
+
+View all available rules:
+
+```bash
+deno lint --rules
+```
+
+Common rules:
+- `ban-ts-comment` - Disallow `@ts-ignore` and similar comments
+- `ban-untagged-todo` - Require TODO comments to have an issue number
+- `no-unused-vars` - Disallow unused variables
+- `no-explicit-any` - Disallow explicit `any` type
+- `no-await-in-sync-fn` - Disallow `await` in non-async functions
+- `eqeqeq` - Require `===` and `!==`
+- `no-const-assign` - Disallow reassigning `const` variables
+- `no-debugger` - Disallow `debugger` statements
+
+### Report Formats
+
+```bash
+# Pretty format (default)
+deno lint
+
+# JSON format
+deno lint --json
+
+# Compact format
+deno lint --compact
+```
+
+Configure in `deno.json`:
+
+```json deno.json
+{
+  "lint": {
+    "report": "pretty"
+  }
+}
+```
+
+### Ignore Linting
+
+Use comments to ignore specific rules:
+
+```typescript
+// deno-lint-ignore no-explicit-any
+function process(data: any) {
+  return data;
+}
+
+// Multiple rules
+// deno-lint-ignore no-explicit-any no-unused-vars
+function example(data: any, unused: string) {
+  return data;
+}
+
+// Entire file
+// deno-lint-ignore-file
+
+// Specific rule for entire file
+// deno-lint-ignore-file no-explicit-any
+```
+
+## Lint Plugins
+
+Load custom lint plugins (unstable):
+
+```json deno.json
+{
+  "lint": {
+    "plugins": [
+      "./custom-lint-rules.ts",
+      "jsr:@custom/lint-rules"
+    ]
+  }
+}
+```
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml .github/workflows/lint.yml
+name: Lint and Format
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v1
+      
+      - name: Check formatting
+        run: deno fmt --check
+      
+      - name: Lint code
+        run: deno lint
+```
+
+### Pre-commit Hook
+
+Create `.git/hooks/pre-commit`:
+
+```bash
+#!/bin/sh
+
+# Format staged files
+deno fmt
+
+# Lint staged files
+deno lint
+
+# Add formatted files
+git add -u
+```
+
+Make it executable:
+
+```bash
+chmod +x .git/hooks/pre-commit
+```
+
+## VS Code Integration
+
+The [Deno VS Code extension](https://marketplace.visualstudio.com/items?itemName=denoland.vscode-deno) automatically:
+- Formats on save
+- Shows lint errors inline
+- Provides quick fixes
+
+Configure in `.vscode/settings.json`:
+
+```json .vscode/settings.json
+{
+  "deno.enable": true,
+  "deno.lint": true,
+  "editor.formatOnSave": true,
+  "[typescript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  }
+}
+```
+
+## Task Configuration
+
+Add tasks to `deno.json`:
+
+```json deno.json
+{
+  "tasks": {
+    "fmt": "deno fmt",
+    "fmt:check": "deno fmt --check",
+    "lint": "deno lint",
+    "check": "deno fmt --check && deno lint"
+  }
+}
+```
+
+Run tasks:
+
+```bash
+deno task fmt
+deno task lint
+deno task check
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Format before committing" icon="git">
+    Always run `deno fmt` before committing code
+  </Card>
+  
+  <Card title="Use recommended rules" icon="check">
+    Start with recommended lint rules and customize as needed
+  </Card>
+  
+  <Card title="Automate in CI" icon="robot">
+    Add formatting and linting checks to your CI pipeline
+  </Card>
+  
+  <Card title="Configure editor" icon="code">
+    Set up format-on-save in your editor
+  </Card>
+  
+  <Card title="Document exceptions" icon="comment">
+    Add comments explaining why rules are disabled
+  </Card>
+  
+  <Card title="Keep config minimal" icon="sliders">
+    Only override defaults when necessary
+  </Card>
+</CardGroup>
+
+## Example Configuration
+
+```json deno.json
+{
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 100,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false,
+    "proseWrap": "preserve",
+    "include": ["src/", "tests/"],
+    "exclude": ["src/generated/", "dist/", "coverage/"]
+  },
+  "lint": {
+    "include": ["src/", "tests/"],
+    "exclude": ["src/generated/"],
+    "rules": {
+      "tags": ["recommended"],
+      "include": ["ban-untagged-todo"],
+      "exclude": ["no-explicit-any"]
+    },
+    "report": "pretty"
+  },
+  "tasks": {
+    "fmt": "deno fmt",
+    "fmt:check": "deno fmt --check",
+    "lint": "deno lint",
+    "check": "deno fmt --check && deno lint && deno check **/*.ts"
+  }
+}
+```
+
+## Migration from Other Tools
+
+### From Prettier
+
+Deno's formatter is similar to Prettier with sensible defaults:
+
+```json deno.json
+{
+  "fmt": {
+    "lineWidth": 80,        // printWidth
+    "indentWidth": 2,       // tabWidth
+    "useTabs": false,       // useTabs
+    "semiColons": true,     // semi
+    "singleQuote": false,   // singleQuote
+    "trailingCommas": "onlyMultiLine"  // trailingComma: "es5"
+  }
+}
+```
+
+### From ESLint
+
+Map common ESLint rules to Deno lint:
+
+- `no-unused-vars` → `no-unused-vars`
+- `@typescript-eslint/no-explicit-any` → `no-explicit-any`
+- `eqeqeq` → `eqeqeq`
+- `no-debugger` → `no-debugger`
+- `prefer-const` → `prefer-const`

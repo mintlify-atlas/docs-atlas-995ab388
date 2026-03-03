@@ -1,0 +1,694 @@
+---
+title: Deno KV Database
+description: Deno's built-in key-value database for persistent data storage
+---
+
+Deno KV is a built-in key-value database that provides a simple yet powerful way to store and retrieve data. It's designed for both local development and production use.
+
+## Opening a Database
+
+### Deno.openKv()
+
+Opens a key-value database.
+
+```typescript
+function openKv(path?: string): Promise<Deno.Kv>
+```
+
+<ParamField path="path" type="string">
+  Optional path to the database file. If not specified, uses a default location based on the script's path.
+</ParamField>
+
+**Example:**
+
+```typescript
+// Open default database
+const kv = await Deno.openKv();
+
+// Open database at specific path
+const kv2 = await Deno.openKv("./my-database.db");
+
+// Always close when done
+kv.close();
+```
+
+Requires `allow-read` and `allow-write` permissions.
+
+## Basic Operations
+
+### get()
+
+Retrieves a value from the database.
+
+```typescript
+get<T = unknown>(
+  key: KvKey,
+  options?: { consistency?: KvConsistencyLevel }
+): Promise<KvEntry<T>>
+```
+
+<ParamField path="key" type="KvKey" required>
+  The key to retrieve. A key is an array of key parts (strings, numbers, bigints, booleans, or Uint8Arrays)
+</ParamField>
+
+<ParamField path="options.consistency" type="'strong' | 'eventual'" default="'strong'">
+  The consistency level for the read operation
+</ParamField>
+
+<ResponseField name="key" type="KvKey">
+  The key of the entry
+</ResponseField>
+
+<ResponseField name="value" type="T | null">
+  The value of the entry, or null if not found
+</ResponseField>
+
+<ResponseField name="versionstamp" type="string | null">
+  The versionstamp of the entry, or null if not found
+</ResponseField>
+
+**Example:**
+
+```typescript
+const kv = await Deno.openKv();
+
+// Simple key
+const result = await kv.get(["users", "alice"]);
+if (result.value !== null) {
+  console.log("User:", result.value);
+}
+
+// Composite key
+const post = await kv.get(["posts", "2024", "post-123"]);
+console.log(post.value);
+
+kv.close();
+```
+
+### set()
+
+Sets a value in the database.
+
+```typescript
+set(
+  key: KvKey,
+  value: unknown,
+  options?: { expireIn?: number }
+): Promise<KvCommitResult>
+```
+
+<ParamField path="key" type="KvKey" required>
+  The key to set
+</ParamField>
+
+<ParamField path="value" type="unknown" required>
+  The value to store (must be serializable)
+</ParamField>
+
+<ParamField path="options.expireIn" type="number">
+  Time in milliseconds after which the entry expires
+</ParamField>
+
+<ResponseField name="ok" type="boolean">
+  Always true if successful
+</ResponseField>
+
+<ResponseField name="versionstamp" type="string">
+  The versionstamp of the new entry
+</ResponseField>
+
+**Example:**
+
+```typescript
+const kv = await Deno.openKv();
+
+// Set a value
+const result = await kv.set(["users", "alice"], {
+  name: "Alice",
+  email: "alice@example.com",
+  age: 30,
+});
+
+console.log(result.versionstamp);
+
+// Set with expiration (1 hour)
+await kv.set(
+  ["sessions", "abc123"],
+  { userId: "alice" },
+  { expireIn: 60 * 60 * 1000 }
+);
+
+kv.close();
+```
+
+### delete()
+
+Deletes a value from the database.
+
+```typescript
+delete(key: KvKey): Promise<void>
+```
+
+**Example:**
+
+```typescript
+const kv = await Deno.openKv();
+await kv.delete(["users", "alice"]);
+kv.close();
+```
+
+### getMany()
+
+Retrieves multiple values in a single operation.
+
+```typescript
+getMany<T extends readonly unknown[]>(
+  keys: readonly [...{ [K in keyof T]: KvKey }],
+  options?: { consistency?: KvConsistencyLevel }
+): Promise<{ [K in keyof T]: KvEntry<T[K]> }>
+```
+
+**Example:**
+
+```typescript
+const kv = await Deno.openKv();
+
+const results = await kv.getMany([
+  ["users", "alice"],
+  ["users", "bob"],
+  ["users", "charlie"],
+]);
+
+for (const result of results) {
+  console.log(result.key, result.value);
+}
+
+kv.close();
+```
+
+## Listing Entries
+
+### list()
+
+Lists entries in the database matching a selector.
+
+```typescript
+list<T = unknown>(
+  selector: KvListSelector,
+  options?: KvListOptions
+): KvListIterator<T>
+```
+
+<ParamField path="selector" type="KvListSelector" required>
+  Selector defining which entries to list. Can specify `prefix`, `start`, and/or `end`
+</ParamField>
+
+<ParamField path="options.limit" type="number">
+  Maximum number of entries to return
+</ParamField>
+
+<ParamField path="options.reverse" type="boolean" default="false">
+  Whether to iterate in reverse order
+</ParamField>
+
+<ParamField path="options.cursor" type="string">
+  Cursor from a previous list operation for pagination
+</ParamField>
+
+<ParamField path="options.consistency" type="'strong' | 'eventual'" default="'strong'">
+  The consistency level for the read operation
+</ParamField>
+
+<ParamField path="options.batchSize" type="number" default="100">
+  Number of entries to fetch per batch
+</ParamField>
+
+**Example:**
+
+```typescript
+const kv = await Deno.openKv();
+
+// List all users
+const users = kv.list({ prefix: ["users"] });
+for await (const entry of users) {
+  console.log(entry.key, entry.value);
+}
+
+// List with limit
+const first10 = kv.list({ prefix: ["posts"] }, { limit: 10 });
+for await (const entry of first10) {
+  console.log(entry.value);
+}
+
+// List in reverse order
+const latest = kv.list(
+  { prefix: ["posts"] },
+  { reverse: true, limit: 5 }
+);
+
+// List with start and end
+const range = kv.list({
+  start: ["users", "a"],
+  end: ["users", "m"],
+});
+
+kv.close();
+```
+
+## Atomic Operations
+
+### atomic()
+
+Creates an atomic operation builder.
+
+```typescript
+atomic(): AtomicOperation
+```
+
+Atomic operations allow you to perform multiple operations that either all succeed or all fail together.
+
+**Example:**
+
+```typescript
+const kv = await Deno.openKv();
+
+const result = await kv.atomic()
+  .check({ key: ["users", "alice"], versionstamp: "00000000000000010000" })
+  .set(["users", "alice"], { name: "Alice Updated" })
+  .set(["audit", Date.now()], { action: "update", user: "alice" })
+  .commit();
+
+if (result.ok) {
+  console.log("All operations succeeded");
+} else {
+  console.log("Atomic operation failed");
+}
+
+kv.close();
+```
+
+### AtomicOperation Methods
+
+#### check()
+
+Adds a check to verify a key's versionstamp.
+
+```typescript
+check(...checks: AtomicCheck[]): this
+```
+
+**Example:**
+
+```typescript
+const current = await kv.get(["counter"]);
+
+await kv.atomic()
+  .check({ key: ["counter"], versionstamp: current.versionstamp })
+  .set(["counter"], (current.value as number) + 1)
+  .commit();
+```
+
+#### set()
+
+Adds a set operation.
+
+```typescript
+set(key: KvKey, value: unknown, options?: { expireIn?: number }): this
+```
+
+#### delete()
+
+Adds a delete operation.
+
+```typescript
+delete(key: KvKey): this
+```
+
+#### mutate()
+
+Adds mutation operations.
+
+```typescript
+mutate(...mutations: KvMutation[]): this
+```
+
+#### sum()
+
+Adds or subtracts from a `Deno.KvU64` value.
+
+```typescript
+sum(key: KvKey, n: bigint): this
+```
+
+**Example:**
+
+```typescript
+const kv = await Deno.openKv();
+
+// Initialize counter
+await kv.set(["counter"], new Deno.KvU64(0n));
+
+// Increment counter atomically
+await kv.atomic()
+  .sum(["counter"], 1n)
+  .commit();
+
+const result = await kv.get(["counter"]);
+console.log(result.value); // Deno.KvU64(1n)
+
+kv.close();
+```
+
+#### min() / max()
+
+Sets a value only if it's less than (min) or greater than (max) the current value.
+
+```typescript
+min(key: KvKey, n: bigint): this
+max(key: KvKey, n: bigint): this
+```
+
+#### commit()
+
+Commits the atomic operation.
+
+```typescript
+commit(): Promise<KvCommitResult | KvCommitError>
+```
+
+## Queue Operations
+
+### enqueue()
+
+Enqueues a message for background processing.
+
+```typescript
+enqueue(
+  message: unknown,
+  options?: {
+    delay?: number;
+    keysIfUndelivered?: KvKey[];
+    backoffSchedule?: number[];
+  }
+): Promise<KvCommitResult>
+```
+
+<ParamField path="message" type="unknown" required>
+  The message to enqueue (must be serializable)
+</ParamField>
+
+<ParamField path="options.delay" type="number">
+  Delay in milliseconds before the message is delivered (max 30 days)
+</ParamField>
+
+<ParamField path="options.keysIfUndelivered" type="KvKey[]">
+  Keys to set if the message cannot be delivered
+</ParamField>
+
+<ParamField path="options.backoffSchedule" type="number[]">
+  Backoff schedule in milliseconds for retries (max 5 intervals)
+</ParamField>
+
+**Example:**
+
+```typescript
+const kv = await Deno.openKv();
+
+// Enqueue immediate message
+await kv.enqueue({ type: "email", to: "user@example.com" });
+
+// Enqueue delayed message (1 hour)
+await kv.enqueue(
+  { type: "reminder", userId: "alice" },
+  { delay: 60 * 60 * 1000 }
+);
+
+// Enqueue with retry backoff
+await kv.enqueue(
+  { type: "webhook", url: "https://example.com" },
+  { backoffSchedule: [1000, 5000, 30000] } // 1s, 5s, 30s
+);
+
+kv.close();
+```
+
+### listenQueue()
+
+Listens for and processes messages from the queue.
+
+```typescript
+listenQueue(
+  handler: (message: unknown) => Promise<void> | void
+): Promise<void>
+```
+
+**Example:**
+
+```typescript
+const kv = await Deno.openKv();
+
+kv.listenQueue(async (message) => {
+  console.log("Received message:", message);
+  
+  if (message.type === "email") {
+    await sendEmail(message.to, message.subject, message.body);
+  } else if (message.type === "webhook") {
+    await fetch(message.url, {
+      method: "POST",
+      body: JSON.stringify(message.data),
+    });
+  }
+  
+  // If handler succeeds, message is acknowledged
+  // If handler throws, message is retried based on backoff schedule
+});
+```
+
+## Watching for Changes
+
+### watch()
+
+Watches keys for changes.
+
+```typescript
+watch<T extends readonly unknown[]>(
+  keys: readonly [...{ [K in keyof T]: KvKey }],
+  options?: { raw?: boolean }
+): ReadableStream<{ [K in keyof T]: KvEntryMaybe<T[K]> }>
+```
+
+<ParamField path="keys" type="KvKey[]" required>
+  Array of keys to watch
+</ParamField>
+
+<ParamField path="options.raw" type="boolean" default="false">
+  Whether to emit unchanged values
+</ParamField>
+
+**Example:**
+
+```typescript
+const kv = await Deno.openKv();
+
+const stream = kv.watch([
+  ["users", "alice"],
+  ["users", "bob"],
+]);
+
+for await (const entries of stream) {
+  console.log("Changes detected:");
+  for (const entry of entries) {
+    console.log(entry.key, entry.value, entry.versionstamp);
+  }
+}
+```
+
+## Data Types
+
+### KvKey
+
+A key is an array of key parts:
+
+```typescript
+type KvKey = readonly KvKeyPart[];
+type KvKeyPart = string | number | bigint | boolean | Uint8Array;
+```
+
+**Example:**
+
+```typescript
+// Simple keys
+const key1: KvKey = ["users", "alice"];
+const key2: KvKey = ["posts", 2024, 12, 1];
+
+// Hierarchical keys
+const key3: KvKey = ["orgs", "acme", "users", "alice"];
+const key4: KvKey = ["cache", "api", "github", "repos"];
+
+// Using different types
+const key5: KvKey = ["flags", true];
+const key6: KvKey = ["binary", new Uint8Array([1, 2, 3])];
+```
+
+### Deno.KvU64
+
+Special unsigned 64-bit integer type for atomic operations.
+
+```typescript
+class KvU64 {
+  constructor(value: bigint)
+  readonly value: bigint
+}
+```
+
+**Example:**
+
+```typescript
+// Store counter
+await kv.set(["visits"], new Deno.KvU64(0n));
+
+// Increment atomically
+await kv.atomic().sum(["visits"], 1n).commit();
+
+const visits = await kv.get<Deno.KvU64>(["visits"]);
+console.log(visits.value?.value); // 1n
+```
+
+## Complete Examples
+
+### User Management
+
+```typescript
+const kv = await Deno.openKv();
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: number;
+}
+
+// Create user
+async function createUser(user: User) {
+  const result = await kv.atomic()
+    .check({ key: ["users", user.id], versionstamp: null })
+    .check({ key: ["users_by_email", user.email], versionstamp: null })
+    .set(["users", user.id], user)
+    .set(["users_by_email", user.email], user.id)
+    .commit();
+  
+  if (!result.ok) {
+    throw new Error("User already exists");
+  }
+}
+
+// Get user by ID
+async function getUser(id: string): Promise<User | null> {
+  const result = await kv.get<User>(["users", id]);
+  return result.value;
+}
+
+// Get user by email
+async function getUserByEmail(email: string): Promise<User | null> {
+  const idResult = await kv.get<string>(["users_by_email", email]);
+  if (!idResult.value) return null;
+  return getUser(idResult.value);
+}
+
+// List all users
+async function listUsers(): Promise<User[]> {
+  const users: User[] = [];
+  const iter = kv.list<User>({ prefix: ["users"] });
+  for await (const entry of iter) {
+    users.push(entry.value);
+  }
+  return users;
+}
+
+// Update user
+async function updateUser(id: string, updates: Partial<User>) {
+  const current = await kv.get<User>(["users", id]);
+  if (!current.value) {
+    throw new Error("User not found");
+  }
+  
+  const updated = { ...current.value, ...updates };
+  await kv.atomic()
+    .check({ key: ["users", id], versionstamp: current.versionstamp })
+    .set(["users", id], updated)
+    .commit();
+}
+
+// Delete user
+async function deleteUser(id: string) {
+  const user = await getUser(id);
+  if (!user) return;
+  
+  await kv.atomic()
+    .delete(["users", id])
+    .delete(["users_by_email", user.email])
+    .commit();
+}
+
+kv.close();
+```
+
+### Rate Limiting
+
+```typescript
+const kv = await Deno.openKv();
+
+async function rateLimit(
+  key: string,
+  limit: number,
+  windowMs: number
+): Promise<boolean> {
+  const now = Date.now();
+  const windowKey = ["rate_limit", key, Math.floor(now / windowMs)];
+  
+  const current = await kv.get<Deno.KvU64>(windowKey);
+  const count = current.value?.value ?? 0n;
+  
+  if (count >= BigInt(limit)) {
+    return false; // Rate limit exceeded
+  }
+  
+  await kv.atomic()
+    .check({ key: windowKey, versionstamp: current.versionstamp })
+    .set(windowKey, new Deno.KvU64(count + 1n), { expireIn: windowMs })
+    .commit();
+  
+  return true; // Request allowed
+}
+
+// Usage
+const allowed = await rateLimit("user:alice", 100, 60_000); // 100 requests per minute
+if (!allowed) {
+  throw new Error("Rate limit exceeded");
+}
+
+kv.close();
+```
+
+## Best Practices
+
+1. **Always close databases**: Call `.close()` when done, or use `using` keyword
+2. **Use atomic operations**: For operations that must be consistent
+3. **Design good keys**: Use hierarchical keys for efficient listing
+4. **Handle version conflicts**: Check return values from atomic operations
+5. **Set expiration**: Use `expireIn` for temporary data
+6. **Batch operations**: Use `getMany()` instead of multiple `get()` calls
+7. **Use queue for async work**: Don't block the main thread
+8. **Watch selectively**: Only watch keys you need to monitor
+
+## Permissions
+
+Deno KV requires the following permissions:
+
+```bash
+# Read and write for database file
+deno run --allow-read --allow-write script.ts
+
+# Specific path
+deno run --allow-read=./db --allow-write=./db script.ts
+```

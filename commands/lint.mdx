@@ -1,0 +1,268 @@
+---
+title: deno lint
+description: Lint source files for code quality and best practices
+---
+
+The `deno lint` command analyzes your source code for potential errors and style issues.
+
+## Usage
+
+```bash
+deno lint [OPTIONS] [FILES]...
+```
+
+## Basic Examples
+
+```bash
+# Lint all files in current directory
+deno lint
+
+# Lint specific files
+deno lint src/main.ts
+
+# Lint and auto-fix issues
+deno lint --fix
+
+# List all available rules
+deno lint --rules
+
+# Output as JSON
+deno lint --json
+```
+
+## Rule Management
+
+<ParamField path="--rules" type="boolean">
+  List all available lint rules
+  
+  ```bash
+  deno lint --rules
+  ```
+</ParamField>
+
+<ParamField path="--rules-tags" type="string">
+  Show rules from specific tags
+  
+  ```bash
+  deno lint --rules --rules-tags=recommended
+  ```
+</ParamField>
+
+<ParamField path="--rules-include" type="string">
+  Include specific rules
+  
+  ```bash
+  deno lint --rules-include=no-unused-vars,no-debugger
+  ```
+</ParamField>
+
+<ParamField path="--rules-exclude" type="string">
+  Exclude specific rules
+  
+  ```bash
+  deno lint --rules-exclude=no-explicit-any,ban-types
+  ```
+</ParamField>
+
+## Auto-fix
+
+<ParamField path="--fix" type="boolean">
+  Automatically fix lint issues where possible
+  
+  ```bash
+  # Fix all auto-fixable issues
+  deno lint --fix
+  
+  # Fix specific files
+  deno lint --fix src/main.ts
+  ```
+</ParamField>
+
+## Output Formats
+
+<ParamField path="--json" type="boolean">
+  Output lint results as JSON
+  
+  ```bash
+  deno lint --json > lint-results.json
+  ```
+</ParamField>
+
+<ParamField path="--compact" type="boolean">
+  Output in compact format
+  
+  ```bash
+  deno lint --compact
+  ```
+</ParamField>
+
+## Watch Mode
+
+<ParamField path="--watch" type="string">
+  Watch for file changes and re-lint automatically
+  
+  ```bash
+  # Watch mode
+  deno lint --watch
+  
+  # Watch specific paths
+  deno lint --watch=src/
+  ```
+</ParamField>
+
+<ParamField path="--no-clear-screen" type="boolean">
+  Don't clear the screen on watch mode restart
+</ParamField>
+
+## File Filtering
+
+<ParamField path="--ignore" type="string">
+  Ignore files or directories
+  
+  ```bash
+  deno lint --ignore=build/,dist/,**/*_test.ts
+  ```
+</ParamField>
+
+## Configuration
+
+Configure linting in `deno.json`:
+
+```json
+{
+  "lint": {
+    "include": ["src/"],
+    "exclude": ["src/testdata/", "build/"],
+    "rules": {
+      "tags": ["recommended"],
+      "include": ["ban-untagged-todo"],
+      "exclude": ["no-unused-vars"]
+    }
+  }
+}
+```
+
+## Common Rules
+
+### Recommended Rules
+
+- `no-unused-vars` - Disallow unused variables
+- `no-debugger` - Disallow debugger statements
+- `no-explicit-any` - Disallow explicit `any` type
+- `no-undef` - Disallow undefined variables
+- `no-unreachable` - Disallow unreachable code
+- `eqeqeq` - Require `===` and `!==`
+- `no-empty` - Disallow empty block statements
+- `no-prototype-builtins` - Disallow calling built-in object methods directly
+- `no-throw-literal` - Disallow throwing non-Error values
+- `prefer-as-const` - Prefer `as const` over literal type
+
+### Fresh-Specific Rules
+
+- `fresh-server-event-handlers` - Validate Fresh server event handlers
+- `fresh-handler-export` - Ensure Fresh handlers are exported correctly
+
+## Ignoring Code
+
+### Ignore File
+
+Add a comment at the top of the file:
+
+```typescript
+// deno-lint-ignore-file
+
+function problematic() {
+  var x = 1; // normally would warn about 'var'
+}
+```
+
+### Ignore Next Line
+
+```typescript
+// deno-lint-ignore no-unused-vars
+const unused = "this variable is not used";
+```
+
+### Ignore Multiple Rules
+
+```typescript
+// deno-lint-ignore no-explicit-any no-unused-vars
+const data: any = {};
+```
+
+### Ignore in Configuration
+
+```json
+{
+  "lint": {
+    "rules": {
+      "exclude": ["no-explicit-any", "no-unused-vars"]
+    }
+  }
+}
+```
+
+## Examples
+
+### Lint with Auto-fix in CI
+
+```bash
+#!/bin/bash
+# Check if linting would make changes
+if ! deno lint --check; then
+  echo "Linting issues found. Run 'deno lint --fix' to fix them."
+  exit 1
+fi
+```
+
+### Custom Rule Configuration
+
+```json
+{
+  "lint": {
+    "rules": {
+      "tags": ["recommended"],
+      "include": [
+        "ban-untagged-todo",
+        "camelcase",
+        "explicit-function-return-type"
+      ],
+      "exclude": [
+        "no-explicit-any"
+      ]
+    }
+  }
+}
+```
+
+### Lint Specific File Types
+
+```bash
+# Lint only TypeScript files
+deno lint **/*.ts
+
+# Lint excluding test files
+deno lint --ignore="**/*_test.ts"
+```
+
+### Output Lint Results
+
+```bash
+# Generate JSON report
+deno lint --json > lint-report.json
+
+# Compact output for CI
+deno lint --compact src/
+```
+
+### Pre-commit Hook
+
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+
+if ! deno lint; then
+  echo "Please fix linting issues before committing"
+  exit 1
+fi
+```

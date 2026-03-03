@@ -1,0 +1,294 @@
+---
+title: deno serve
+description: Run a server
+---
+
+The `deno serve` command runs a JavaScript or TypeScript file as an HTTP server.
+
+## Usage
+
+```bash
+deno serve [OPTIONS] [SCRIPT]
+```
+
+## Description
+
+The `serve` command is optimized for running HTTP servers. It automatically handles multiple workers for improved performance and provides special handling for modules that export a default object with a `fetch` handler.
+
+## Flags
+
+<ParamField path="--port" type="number">
+  The port to listen on (default: 8000)
+</ParamField>
+
+<ParamField path="--host" type="string">
+  The host to listen on (default: 0.0.0.0)
+</ParamField>
+
+<ParamField path="--parallel" type="boolean">
+  Run multiple server instances in parallel for better performance
+</ParamField>
+
+<ParamField path="--open" type="boolean">
+  Open a browser window to the server URL after starting
+</ParamField>
+
+<ParamField path="--watch" type="boolean">
+  Watch for file changes and restart the server
+</ParamField>
+
+<ParamField path="--hmr" type="boolean">
+  Enable Hot Module Replacement (requires --watch)
+</ParamField>
+
+<ParamField path="--no-clear-screen" type="boolean">
+  Do not clear the screen when restarting in watch mode
+</ParamField>
+
+### Permission Flags
+
+<ParamField path="--allow-net" type="string">
+  Allow network access. Usually required for servers
+</ParamField>
+
+<ParamField path="--allow-read" type="string">
+  Allow file system read access
+</ParamField>
+
+<ParamField path="--allow-write" type="string">
+  Allow file system write access
+</ParamField>
+
+<ParamField path="--allow-env" type="string">
+  Allow environment access
+</ParamField>
+
+<ParamField path="--allow-all" type="boolean">
+  Allow all permissions
+</ParamField>
+
+### Other Runtime Flags
+
+<ParamField path="--import-map" type="string">
+  Load import map file
+</ParamField>
+
+<ParamField path="--config" type="string">
+  Specify the configuration file
+</ParamField>
+
+<ParamField path="--no-config" type="boolean">
+  Disable automatic loading of the configuration file
+</ParamField>
+
+<ParamField path="--lock" type="string">
+  Check the specified lock file
+</ParamField>
+
+<ParamField path="--node-modules-dir" type="boolean">
+  Enables or disables the use of a local node_modules folder
+</ParamField>
+
+## Server Module Format
+
+Your server module should export a default object with a `fetch` handler:
+
+```typescript
+export default {
+  fetch(req: Request): Response | Promise<Response> {
+    return new Response("Hello, World!");
+  },
+};
+```
+
+Or using the `Deno.ServeDefaultExport` type:
+
+```typescript
+export default {
+  fetch(req) {
+    const url = new URL(req.url);
+    
+    if (url.pathname === "/") {
+      return new Response("Home page");
+    }
+    
+    return new Response("Not found", { status: 404 });
+  },
+} satisfies Deno.ServeDefaultExport;
+```
+
+## Examples
+
+### Basic server
+
+Create a simple server (`server.ts`):
+
+```typescript
+export default {
+  fetch(req) {
+    return new Response("Hello from Deno!");
+  },
+};
+```
+
+Run it:
+
+```bash
+deno serve --allow-net server.ts
+```
+
+### Custom port and host
+
+```bash
+deno serve --port 3000 --host localhost server.ts
+```
+
+### With file system access
+
+Serve static files:
+
+```bash
+deno serve --allow-net --allow-read server.ts
+```
+
+### Watch mode
+
+Automatically restart on file changes:
+
+```bash
+deno serve --watch --allow-net server.ts
+```
+
+### Hot Module Replacement
+
+Enable HMR for faster development:
+
+```bash
+deno serve --watch --hmr --allow-net server.ts
+```
+
+### Parallel workers
+
+Run multiple workers for better performance:
+
+```bash
+deno serve --parallel --allow-net server.ts
+```
+
+### Open browser automatically
+
+```bash
+deno serve --open --allow-net server.ts
+```
+
+### Complete development setup
+
+```bash
+deno serve --watch --hmr --parallel --port 3000 --allow-net --allow-read server.ts
+```
+
+## Routing Example
+
+Handle different routes:
+
+```typescript
+export default {
+  fetch(req) {
+    const url = new URL(req.url);
+    
+    switch (url.pathname) {
+      case "/":
+        return new Response("Home page");
+      
+      case "/about":
+        return new Response("About page");
+      
+      case "/api/users":
+        return Response.json({ users: ["Alice", "Bob"] });
+      
+      default:
+        return new Response("Not found", { status: 404 });
+    }
+  },
+};
+```
+
+## Using URLPattern
+
+Match dynamic routes:
+
+```typescript
+const userPattern = new URLPattern({ pathname: "/users/:id" });
+const staticPattern = new URLPattern({ pathname: "/static/*" });
+
+export default {
+  fetch(req) {
+    const url = new URL(req.url);
+    
+    const userMatch = userPattern.exec(url);
+    if (userMatch) {
+      const userId = userMatch.pathname.groups.id;
+      return new Response(`User ID: ${userId}`);
+    }
+    
+    if (staticPattern.test(url)) {
+      return serveStaticFile(req);
+    }
+    
+    return new Response("Not found", { status: 404 });
+  },
+};
+```
+
+## Performance Tips
+
+### Use parallel workers
+
+For CPU-intensive workloads:
+
+```bash
+deno serve --parallel --allow-net server.ts
+```
+
+### Enable caching
+
+Use Deno's built-in caching:
+
+```typescript
+const cache = await caches.open("my-cache");
+
+export default {
+  async fetch(req) {
+    const cached = await cache.match(req);
+    if (cached) return cached;
+    
+    const response = await generateResponse(req);
+    await cache.put(req, response.clone());
+    return response;
+  },
+};
+```
+
+## Environment Variables
+
+Access environment variables:
+
+```typescript
+export default {
+  fetch(req) {
+    const port = Deno.env.get("PORT") || "8000";
+    return new Response(`Server configured for port ${port}`);
+  },
+};
+```
+
+Run with environment variables:
+
+```bash
+PORT=3000 deno serve --allow-net --allow-env server.ts
+```
+
+## See Also
+
+- [`deno run`](/commands/run) - Run a script
+- [`deno task`](/commands/task) - Run a task from deno.json

@@ -1,0 +1,327 @@
+---
+title: deno test
+description: Run tests in your Deno project
+---
+
+The `deno test` command discovers and runs tests in your project.
+
+## Usage
+
+```bash
+deno test [OPTIONS] [FILES]...
+```
+
+## Basic Examples
+
+```bash
+# Run all tests
+deno test
+
+# Run specific test file
+deno test test.ts
+
+# Run tests matching a pattern
+deno test --filter "my test"
+
+# Run tests with coverage
+deno test --coverage=cov_profile
+```
+
+## Test Discovery
+
+Deno automatically discovers test files with these patterns:
+- Files ending with `_test.ts`, `_test.tsx`, `_test.js`, `_test.jsx`
+- Files ending with `.test.ts`, `.test.tsx`, `.test.js`, `.test.jsx`
+- Files named `test.ts`, `test.tsx`, `test.js`, `test.jsx`
+- Files in `__tests__` directories
+
+## Filtering Options
+
+<ParamField path="--filter" type="string">
+  Run tests with names matching this pattern (string match or regex)
+  
+  ```bash
+  # String match
+  deno test --filter "user login"
+  
+  # Regex pattern
+  deno test --filter "/^user/"
+  ```
+</ParamField>
+
+<ParamField path="--ignore" type="string">
+  Ignore files matching this pattern
+  
+  ```bash
+  deno test --ignore=integration/
+  ```
+</ParamField>
+
+## Execution Options
+
+<ParamField path="--parallel" type="boolean">
+  Run test modules in parallel (default: true)
+  
+  ```bash
+  deno test --parallel
+  deno test --parallel=false  # Run sequentially
+  ```
+</ParamField>
+
+<ParamField path="--fail-fast" type="number">
+  Stop after N failures
+  
+  ```bash
+  # Stop after first failure
+  deno test --fail-fast=1
+  
+  # Stop after 5 failures
+  deno test --fail-fast=5
+  ```
+</ParamField>
+
+<ParamField path="--shuffle" type="number">
+  Shuffle test execution order (optionally with a seed)
+  
+  ```bash
+  # Shuffle with random seed
+  deno test --shuffle
+  
+  # Shuffle with specific seed for reproducibility
+  deno test --shuffle=42
+  ```
+</ParamField>
+
+## Watch Mode
+
+<ParamField path="--watch" type="string">
+  Watch for file changes and rerun tests
+  
+  ```bash
+  # Watch mode
+  deno test --watch
+  
+  # Watch specific paths
+  deno test --watch=src/,tests/
+  ```
+</ParamField>
+
+<ParamField path="--no-clear-screen" type="boolean">
+  Don't clear the screen on watch mode restart
+</ParamField>
+
+## Coverage
+
+<ParamField path="--coverage" type="string">
+  Collect coverage data into the specified directory
+  
+  ```bash
+  deno test --coverage=cov_profile
+  ```
+</ParamField>
+
+<ParamField path="--clean" type="boolean">
+  Empty the coverage directory before running tests
+</ParamField>
+
+## Documentation Tests
+
+<ParamField path="--doc" type="boolean">
+  Type-check code blocks in documentation
+  
+  ```bash
+  # Test code blocks in JSDoc comments
+  deno test --doc
+  
+  # Test code blocks in markdown files
+  deno test --doc README.md
+  ```
+</ParamField>
+
+## Type Checking
+
+<ParamField path="--no-run" type="boolean">
+  Only type-check tests, don't run them
+  
+  ```bash
+  deno test --no-run
+  ```
+</ParamField>
+
+## Reporting
+
+<ParamField path="--reporter" type="string">
+  Select test reporter (pretty, dot, junit, tap)
+  
+  ```bash
+  # Default pretty reporter
+  deno test --reporter=pretty
+  
+  # Dot reporter (minimal output)
+  deno test --reporter=dot
+  
+  # JUnit XML reporter
+  deno test --reporter=junit
+  
+  # TAP reporter
+  deno test --reporter=tap
+  ```
+</ParamField>
+
+<ParamField path="--junit-path" type="string">
+  Write JUnit XML report to the specified path
+  
+  ```bash
+  deno test --junit-path=./report.xml
+  ```
+</ParamField>
+
+<ParamField path="--hide-stacktraces" type="boolean">
+  Hide stack traces in test output
+</ParamField>
+
+## Debugging
+
+<ParamField path="--trace-leaks" type="boolean">
+  Enable tracing of leaked async operations and timers
+  
+  ```bash
+  deno test --trace-leaks
+  ```
+</ParamField>
+
+## Permission Flags
+
+All standard Deno permission flags are available:
+
+```bash
+deno test --allow-read --allow-net test.ts
+```
+
+## Writing Tests
+
+### Basic Test
+
+```typescript
+import { assertEquals } from "@std/assert";
+
+Deno.test("string concatenation", () => {
+  const result = "hello" + " " + "world";
+  assertEquals(result, "hello world");
+});
+```
+
+### Async Test
+
+```typescript
+import { assertEquals } from "@std/assert";
+
+Deno.test("async operation", async () => {
+  const data = await fetch("https://api.example.com/data");
+  const json = await data.json();
+  assertEquals(json.status, "ok");
+});
+```
+
+### Test Steps
+
+```typescript
+import { assertEquals } from "@std/assert";
+
+Deno.test("user workflow", async (t) => {
+  await t.step("create user", () => {
+    // Create user logic
+  });
+
+  await t.step("login user", () => {
+    // Login logic
+  });
+
+  await t.step("update profile", () => {
+    // Update logic
+  });
+});
+```
+
+### Test Hooks
+
+```typescript
+import { beforeAll, afterAll, beforeEach, afterEach } from "@std/testing/bdd";
+
+beforeAll(() => {
+  // Setup before all tests
+});
+
+afterAll(() => {
+  // Cleanup after all tests
+});
+
+beforeEach(() => {
+  // Setup before each test
+});
+
+afterEach(() => {
+  // Cleanup after each test
+});
+```
+
+### Ignoring Tests
+
+```typescript
+import { assertEquals } from "@std/assert";
+
+Deno.test({
+  name: "not implemented yet",
+  ignore: true,
+  fn: () => {
+    // Test code
+  },
+});
+
+// Or conditionally ignore
+Deno.test({
+  name: "Windows only test",
+  ignore: Deno.build.os !== "windows",
+  fn: () => {
+    // Test code
+  },
+});
+```
+
+### Test-only Mode
+
+```typescript
+// Run only this test, ignore others
+Deno.test({
+  name: "focus on this test",
+  only: true,
+  fn: () => {
+    // Test code
+  },
+});
+```
+
+## Examples
+
+### Running Tests with Coverage
+
+```bash
+# Run tests and collect coverage
+deno test --coverage=cov_profile
+
+# Generate coverage report
+deno coverage cov_profile
+
+# Generate LCOV report
+deno coverage cov_profile --lcov --output=cov_profile/coverage.lcov
+```
+
+### CI/CD Integration
+
+```bash
+# Run tests with JUnit output for CI
+deno test --junit-path=./test-results.xml
+
+# Run tests with fail-fast and parallel disabled
+deno test --fail-fast=1 --parallel=false
+```

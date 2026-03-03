@@ -1,0 +1,428 @@
+---
+title: Debugging Deno Applications
+description: Learn how to debug Deno applications using the V8 Inspector, Chrome DevTools, VS Code, and other debugging tools and techniques.
+---
+
+Deno has built-in debugging support through the V8 Inspector Protocol, allowing you to use Chrome DevTools, VS Code, and other debugging tools.
+
+## Chrome DevTools Debugging
+
+### Basic Inspector
+
+Start your program with the `--inspect` flag:
+
+```bash
+deno run --inspect --allow-net main.ts
+```
+
+Output:
+```
+Debugger listening on ws://127.0.0.1:9229/ws/...
+Visit chrome://inspect to connect.
+```
+
+<Steps>
+  <Step title="Open Chrome DevTools">
+    Open Chrome and navigate to `chrome://inspect`
+  </Step>
+  
+  <Step title="Connect to target">
+    Click "inspect" under your Deno process
+  </Step>
+  
+  <Step title="Start debugging">
+    Use DevTools to set breakpoints, inspect variables, and step through code
+  </Step>
+</Steps>
+
+### Break on Start
+
+Pause execution immediately on the first line:
+
+```bash
+deno run --inspect-brk --allow-net main.ts
+```
+
+This is useful when you need to debug initialization code or set breakpoints before execution begins.
+
+### Custom Inspector Port
+
+Specify a custom port for the inspector:
+
+```bash
+# Use port 9230
+deno run --inspect=0.0.0.0:9230 main.ts
+
+# Break on start with custom port
+deno run --inspect-brk=127.0.0.1:9230 main.ts
+```
+
+## VS Code Debugging
+
+### Launch Configuration
+
+Create `.vscode/launch.json`:
+
+```json .vscode/launch.json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Deno: Run",
+      "request": "launch",
+      "type": "node",
+      "program": "${workspaceFolder}/main.ts",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "deno",
+      "runtimeArgs": [
+        "run",
+        "--inspect-brk",
+        "--allow-all"
+      ],
+      "attachSimplePort": 9229
+    },
+    {
+      "name": "Deno: Test",
+      "request": "launch",
+      "type": "node",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "deno",
+      "runtimeArgs": [
+        "test",
+        "--inspect-brk",
+        "--allow-all"
+      ],
+      "attachSimplePort": 9229
+    },
+    {
+      "name": "Deno: Attach",
+      "request": "attach",
+      "type": "node",
+      "address": "127.0.0.1",
+      "port": 9229
+    }
+  ]
+}
+```
+
+### Using the Debugger
+
+<Steps>
+  <Step title="Set breakpoints">
+    Click in the gutter next to line numbers to set breakpoints
+  </Step>
+  
+  <Step title="Start debugging">
+    Press `F5` or click "Run and Debug" in the sidebar
+  </Step>
+  
+  <Step title="Control execution">
+    Use the debug toolbar:
+    - Continue (F5)
+    - Step Over (F10)
+    - Step Into (F11)
+    - Step Out (Shift+F11)
+    - Restart (Ctrl+Shift+F5)
+    - Stop (Shift+F5)
+  </Step>
+</Steps>
+
+### Deno Extension for VS Code
+
+Install the official [Deno extension](https://marketplace.visualstudio.com/items?itemName=denoland.vscode-deno) for enhanced debugging and development experience.
+
+## Console Debugging
+
+### Basic Logging
+
+```typescript
+// Simple logging
+console.log("Debug message");
+console.log("User:", user);
+console.log("Multiple values:", x, y, z);
+
+// Formatted output
+console.log("The answer is %d", 42);
+console.log("Hello %s", "world");
+
+// Object inspection
+console.log({ user, settings, data });
+```
+
+### Console Methods
+
+```typescript
+// Different log levels
+console.debug("Debug information");
+console.info("Informational message");
+console.warn("Warning message");
+console.error("Error message");
+
+// Assertions
+console.assert(user !== null, "User should not be null");
+
+// Timing
+console.time("operation");
+// ... do work ...
+console.timeEnd("operation"); // operation: 123ms
+
+// Counting
+console.count("loop"); // loop: 1
+console.count("loop"); // loop: 2
+console.countReset("loop");
+
+// Grouping
+console.group("User Details");
+console.log("Name:", user.name);
+console.log("Email:", user.email);
+console.groupEnd();
+
+// Tables
+const users = [
+  { name: "Alice", age: 30 },
+  { name: "Bob", age: 25 },
+];
+console.table(users);
+
+// Stack traces
+console.trace("Trace point reached");
+
+// Clear console
+console.clear();
+```
+
+## Debugger Statement
+
+Use the `debugger` statement to programmatically break:
+
+```typescript
+function processData(data: unknown) {
+  // Break here when inspector is attached
+  debugger;
+  
+  // Process data
+  return transform(data);
+}
+```
+
+The debugger statement only breaks when an inspector is attached, otherwise it's ignored.
+
+## Debugging Tests
+
+### Test with Inspector
+
+```bash
+# Debug all tests
+deno test --inspect-brk
+
+# Debug specific test file
+deno test --inspect-brk user_test.ts
+
+# Debug with filter
+deno test --inspect-brk --filter "user validation"
+```
+
+### VS Code Test Debugging
+
+Use the test configuration from launch.json:
+
+```json
+{
+  "name": "Deno: Test Current File",
+  "request": "launch",
+  "type": "node",
+  "program": "${file}",
+  "runtimeExecutable": "deno",
+  "runtimeArgs": [
+    "test",
+    "--inspect-brk",
+    "--allow-all"
+  ],
+  "attachSimplePort": 9229
+}
+```
+
+## Remote Debugging
+
+Debug applications running on remote servers:
+
+### Server Side
+
+```bash
+# Listen on all interfaces
+deno run --inspect=0.0.0.0:9229 --allow-net main.ts
+```
+
+### Local Side
+
+Set up SSH port forwarding:
+
+```bash
+ssh -L 9229:localhost:9229 user@remote-server
+```
+
+Then connect Chrome DevTools or VS Code to `localhost:9229`.
+
+## Environment Variables for Debugging
+
+```bash
+# Enable V8 flags
+DENO_V8_FLAGS="--expose-gc" deno run main.ts
+
+# Increase stack trace limit
+DENO_V8_FLAGS="--stack-trace-limit=100" deno run main.ts
+
+# Enable additional logging
+DENO_LOG=debug deno run main.ts
+
+# Log specific modules
+DENO_LOG=deno_core=debug,deno_runtime=info deno run main.ts
+```
+
+## Performance Profiling
+
+### CPU Profiling
+
+```bash
+# Generate CPU profile
+deno run --inspect-brk --allow-all main.ts
+```
+
+In Chrome DevTools:
+1. Go to the Profiler tab
+2. Click "Start"
+3. Run your code
+4. Click "Stop"
+5. Analyze the flame graph
+
+### Memory Profiling
+
+```bash
+# Enable memory profiling
+deno run --inspect --allow-all main.ts
+```
+
+In Chrome DevTools:
+1. Go to the Memory tab
+2. Take heap snapshots
+3. Compare snapshots to find memory leaks
+
+## Source Maps
+
+Deno automatically generates source maps for TypeScript, so you can debug TypeScript code directly.
+
+### Custom Source Maps
+
+If using a bundler or transpiler:
+
+```typescript
+// Inline source map comment
+//# sourceMappingURL=data:application/json;base64,...
+```
+
+## Debugging Common Issues
+
+<AccordionGroup>
+  <Accordion title="Permission Errors">
+    Run with `--allow-all` during debugging:
+    ```bash
+    deno run --inspect-brk --allow-all main.ts
+    ```
+  </Accordion>
+  
+  <Accordion title="Module Not Found">
+    Check the import path and ensure the file exists:
+    ```bash
+    deno info main.ts
+    ```
+  </Accordion>
+  
+  <Accordion title="Type Errors">
+    Check types without running:
+    ```bash
+    deno check main.ts
+    ```
+  </Accordion>
+  
+  <Accordion title="Network Issues">
+    Enable verbose logging:
+    ```bash
+    DENO_LOG=info deno run --allow-net main.ts
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use descriptive logs" icon="message">
+    Include context in log messages:
+    ```typescript
+    console.log(`Processing user ${userId} at ${new Date()}`);
+    ```
+  </Card>
+  
+  <Card title="Remove debugger statements" icon="broom">
+    Don't commit `debugger` statements to production code
+  </Card>
+  
+  <Card title="Use source maps" icon="map">
+    Ensure source maps are enabled for accurate debugging
+  </Card>
+  
+  <Card title="Log structured data" icon="table">
+    Use `console.table()` for complex objects:
+    ```typescript
+    console.table(users);
+    ```
+  </Card>
+</CardGroup>
+
+## Example: Debugging a Web Server
+
+```typescript main.ts
+Deno.serve({ port: 3000 }, (req) => {
+  // Set breakpoint here
+  debugger;
+  
+  console.log(`${req.method} ${req.url}`);
+  console.time("request");
+  
+  const url = new URL(req.url);
+  const path = url.pathname;
+  
+  // Log route handling
+  console.group("Request Details");
+  console.log("Path:", path);
+  console.log("Headers:", Object.fromEntries(req.headers));
+  console.groupEnd();
+  
+  let response: Response;
+  
+  if (path === "/") {
+    response = new Response("Hello, World!");
+  } else if (path === "/api/users") {
+    const users = [{ id: 1, name: "Alice" }];
+    console.table(users);
+    response = Response.json(users);
+  } else {
+    response = new Response("Not Found", { status: 404 });
+  }
+  
+  console.timeEnd("request");
+  return response;
+});
+```
+
+Debug it:
+
+```bash
+deno run --inspect-brk --allow-net main.ts
+```
+
+Then:
+1. Open `chrome://inspect`
+2. Set breakpoints
+3. Make requests to `http://localhost:3000`
+4. Step through the code

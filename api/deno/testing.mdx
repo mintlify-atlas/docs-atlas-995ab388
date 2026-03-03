@@ -1,0 +1,640 @@
+---
+title: Testing APIs
+description: Deno testing and benchmarking APIs
+---
+
+Deno has a built-in test runner and benchmarking framework, making it easy to write and run tests without external dependencies.
+
+## Writing Tests
+
+### Deno.test()
+
+Registers a test which will be run when `deno test` is executed.
+
+```typescript
+function test(definition: TestDefinition): void
+function test(name: string, fn: (t: TestContext) => void | Promise<void>): void
+function test(fn: (t: TestContext) => void | Promise<void>): void
+function test(
+  name: string,
+  options: Omit<TestDefinition, "fn" | "name">,
+  fn: (t: TestContext) => void | Promise<void>
+): void
+```
+
+<ParamField path="name" type="string">
+  The name of the test
+</ParamField>
+
+<ParamField path="fn" type="(t: TestContext) => void | Promise<void>" required>
+  The test function to execute
+</ParamField>
+
+<ParamField path="options" type="TestDefinition">
+  Test configuration options
+</ParamField>
+
+**Example:**
+
+```typescript
+import { assertEquals } from "jsr:@std/assert";
+
+// Basic test
+Deno.test("hello world", () => {
+  const x = 1 + 2;
+  assertEquals(x, 3);
+});
+
+// Async test
+Deno.test("async hello", async () => {
+  const response = await fetch("https://example.com");
+  assertEquals(response.status, 200);
+});
+
+// Test with object syntax
+Deno.test({
+  name: "my test",
+  fn() {
+    assertEquals("hello", "hello");
+  },
+});
+
+// Named function
+Deno.test(function myTestName() {
+  assertEquals("hello", "hello");
+});
+```
+
+## TestDefinition
+
+```typescript
+interface TestDefinition {
+  fn: (t: TestContext) => void | Promise<void>;
+  name: string;
+  ignore?: boolean;
+  only?: boolean;
+  sanitizeOps?: boolean;
+  sanitizeResources?: boolean;
+  sanitizeExit?: boolean;
+  permissions?: PermissionOptions;
+}
+```
+
+<ParamField path="fn" type="(t: TestContext) => void | Promise<void>" required>
+  The test function that will be executed
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  The name of the test
+</ParamField>
+
+<ParamField path="ignore" type="boolean" default="false">
+  If true, the test will be skipped
+</ParamField>
+
+<ParamField path="only" type="boolean" default="false">
+  If true, only tests with `only: true` will run
+</ParamField>
+
+<ParamField path="sanitizeOps" type="boolean" default="true">
+  Check that async operations are completed after the test
+</ParamField>
+
+<ParamField path="sanitizeResources" type="boolean" default="true">
+  Ensure the test doesn't leak resources like open files
+</ParamField>
+
+<ParamField path="sanitizeExit" type="boolean" default="true">
+  Ensure the test doesn't prematurely exit the process
+</ParamField>
+
+<ParamField path="permissions" type="PermissionOptions">
+  Permissions to use for this test. Can be "inherit", "none", or a permissions object
+</ParamField>
+
+## Test Context
+
+The test context provides information about the current test and allows creating nested test steps.
+
+```typescript
+interface TestContext {
+  name: string;
+  origin: string;
+  parent?: TestContext;
+  step(definition: TestStepDefinition): Promise<boolean>;
+  step(name: string, fn: (t: TestContext) => void | Promise<void>): Promise<boolean>;
+  step(fn: (t: TestContext) => void | Promise<void>): Promise<boolean>;
+}
+```
+
+<ResponseField name="name" type="string">
+  The current test name
+</ResponseField>
+
+<ResponseField name="origin" type="string">
+  The string URL of the current test
+</ResponseField>
+
+<ResponseField name="parent" type="TestContext | undefined">
+  If the current test is a step of another test, the parent test context
+</ResponseField>
+
+### Test Steps
+
+Test steps allow you to create nested test cases:
+
+```typescript
+Deno.test("database operations", async (t) => {
+  const db = await setupDatabase();
+  
+  await t.step("create user", async () => {
+    const user = await db.createUser({ name: "Alice" });
+    assertEquals(user.name, "Alice");
+  });
+  
+  await t.step("update user", async () => {
+    await db.updateUser(1, { name: "Bob" });
+    const user = await db.getUser(1);
+    assertEquals(user.name, "Bob");
+  });
+  
+  await t.step("delete user", async () => {
+    await db.deleteUser(1);
+    const user = await db.getUser(1);
+    assertEquals(user, null);
+  });
+  
+  await db.close();
+});
+```
+
+## Test Modifiers
+
+### test.ignore()
+
+Skip a test:
+
+```typescript
+Deno.test.ignore("broken test", () => {
+  // This test will be skipped
+});
+
+// Conditional ignore
+Deno.test({
+  name: "windows only test",
+  ignore: Deno.build.os !== "windows",
+  fn() {
+    // Only runs on Windows
+  },
+});
+```
+
+### test.only()
+
+Run only specific tests:
+
+```typescript
+Deno.test.only("focus on this test", () => {
+  // Only this test will run
+});
+
+Deno.test("this will be skipped", () => {
+  // Skipped because another test has .only
+});
+```
+
+## Test Hooks
+
+### beforeAll()
+
+Run setup code once before all tests:
+
+```typescript
+Deno.test.beforeAll(() => {
+  console.log("Setting up test suite");
+  // Setup database, etc.
+});
+```
+
+### beforeEach()
+
+Run setup code before each test:
+
+```typescript
+let testData: Data;
+
+Deno.test.beforeEach(() => {
+  testData = createFreshData();
+});
+
+Deno.test("test 1", () => {
+  // testData is fresh
+});
+
+Deno.test("test 2", () => {
+  // testData is fresh again
+});
+```
+
+### afterEach()
+
+Run cleanup code after each test:
+
+```typescript
+Deno.test.afterEach(() => {
+  console.log("Cleaning up test");
+});
+```
+
+### afterAll()
+
+Run cleanup code once after all tests:
+
+```typescript
+Deno.test.afterAll(() => {
+  console.log("Cleaning up test suite");
+  // Close database connections, etc.
+});
+```
+
+## Permission Testing
+
+```typescript
+import { assertEquals } from "jsr:@std/assert";
+
+Deno.test({
+  name: "test with read permission",
+  permissions: { read: true },
+  async fn() {
+    const data = await Deno.readTextFile("./config.json");
+    assertEquals(typeof data, "string");
+  },
+});
+
+Deno.test({
+  name: "test with no permissions",
+  permissions: "none",
+  fn() {
+    // This test runs with no permissions
+  },
+});
+
+Deno.test({
+  name: "test inheriting permissions",
+  permissions: "inherit",
+  fn() {
+    // This test uses the CLI's permissions
+  },
+});
+
+Deno.test({
+  name: "test with specific network permission",
+  permissions: {
+    net: ["deno.land"],
+  },
+  async fn() {
+    const response = await fetch("https://deno.land");
+    assertEquals(response.ok, true);
+  },
+});
+```
+
+## Benchmarking
+
+### Deno.bench()
+
+Register a benchmark test.
+
+```typescript
+function bench(definition: BenchDefinition): void
+function bench(name: string, fn: (b: BenchContext) => void | Promise<void>): void
+function bench(fn: (b: BenchContext) => void | Promise<void>): void
+```
+
+<ParamField path="name" type="string">
+  The name of the benchmark
+</ParamField>
+
+<ParamField path="fn" type="(b: BenchContext) => void | Promise<void>" required>
+  The benchmark function to execute
+</ParamField>
+
+**Example:**
+
+```typescript
+Deno.bench("URL parsing", () => {
+  new URL("https://deno.land");
+});
+
+Deno.bench("async operation", async () => {
+  await crypto.subtle.digest("SHA-256", new Uint8Array([1, 2, 3]));
+});
+```
+
+### BenchDefinition
+
+```typescript
+interface BenchDefinition {
+  fn: (b: BenchContext) => void | Promise<void>;
+  name: string;
+  ignore?: boolean;
+  group?: string;
+  baseline?: boolean;
+  only?: boolean;
+  n?: number;
+  warmup?: number;
+  sanitizeExit?: boolean;
+  permissions?: PermissionOptions;
+}
+```
+
+<ParamField path="group" type="string">
+  Group name for the benchmark. Grouped benchmarks produce a comparison summary
+</ParamField>
+
+<ParamField path="baseline" type="boolean" default="false">
+  Use this benchmark as the baseline for other benchmarks in the group
+</ParamField>
+
+<ParamField path="n" type="number">
+  Number of iterations to perform
+</ParamField>
+
+<ParamField path="warmup" type="number">
+  Number of warmup iterations before running the benchmark
+</ParamField>
+
+### BenchContext
+
+```typescript
+interface BenchContext {
+  name: string;
+  origin: string;
+  start(): void;
+  end(): void;
+}
+```
+
+The bench context allows you to control when measurements start and stop:
+
+```typescript
+Deno.bench("setup and teardown", (b) => {
+  const data = createLargeDataSet();
+  
+  b.start(); // Start measuring
+  
+  processData(data);
+  
+  b.end(); // Stop measuring
+  
+  // Cleanup (not measured)
+  cleanup(data);
+});
+```
+
+### Benchmark Groups
+
+```typescript
+Deno.bench({
+  name: "noop",
+  group: "sorting",
+  baseline: true,
+  fn() {},
+});
+
+Deno.bench({
+  name: "Array.sort()",
+  group: "sorting",
+  fn() {
+    const array = Array.from({ length: 1000 }, () => Math.random());
+    array.sort();
+  },
+});
+
+Deno.bench({
+  name: "custom sort",
+  group: "sorting",
+  fn() {
+    const array = Array.from({ length: 1000 }, () => Math.random());
+    customSort(array);
+  },
+});
+```
+
+## Running Tests
+
+```bash
+# Run all tests
+deno test
+
+# Run specific test file
+deno test path/to/test.ts
+
+# Run tests matching a pattern
+deno test --filter "user"
+
+# Run tests in parallel (default)
+deno test --parallel
+
+# Run tests sequentially
+deno test --parallel=false
+
+# Run tests in watch mode
+deno test --watch
+
+# Show test coverage
+deno test --coverage
+
+# Generate coverage report
+deno test --coverage
+deno coverage coverage/
+```
+
+## Running Benchmarks
+
+```bash
+# Run all benchmarks
+deno bench
+
+# Run specific benchmark file
+deno bench path/to/bench.ts
+
+# Run benchmarks matching a pattern
+deno bench --filter "sort"
+
+# Generate JSON output
+deno bench --json > results.json
+```
+
+## Complete Examples
+
+### API Testing
+
+```typescript
+import { assertEquals, assertExists } from "jsr:@std/assert";
+
+Deno.test("API endpoints", async (t) => {
+  const baseUrl = "http://localhost:8000";
+  
+  await t.step("GET /users", async () => {
+    const response = await fetch(`${baseUrl}/users`);
+    assertEquals(response.status, 200);
+    const users = await response.json();
+    assertExists(users);
+  });
+  
+  await t.step("POST /users", async () => {
+    const response = await fetch(`${baseUrl}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Alice" }),
+    });
+    assertEquals(response.status, 201);
+  });
+});
+```
+
+### Database Testing
+
+```typescript
+import { assertEquals } from "jsr:@std/assert";
+import { Database } from "./db.ts";
+
+let db: Database;
+
+Deno.test.beforeAll(async () => {
+  db = await Database.connect(":memory:");
+  await db.migrate();
+});
+
+Deno.test.afterAll(async () => {
+  await db.close();
+});
+
+Deno.test.beforeEach(async () => {
+  await db.clear();
+});
+
+Deno.test("create user", async () => {
+  const user = await db.createUser({ name: "Alice", email: "alice@example.com" });
+  assertEquals(user.name, "Alice");
+  assertEquals(user.email, "alice@example.com");
+});
+
+Deno.test("find user by email", async () => {
+  await db.createUser({ name: "Bob", email: "bob@example.com" });
+  const user = await db.findByEmail("bob@example.com");
+  assertEquals(user?.name, "Bob");
+});
+```
+
+### Performance Benchmarks
+
+```typescript
+// Compare different implementations
+Deno.bench({
+  name: "regex match",
+  group: "string-search",
+  baseline: true,
+  fn() {
+    /hello/.test("hello world");
+  },
+});
+
+Deno.bench({
+  name: "indexOf",
+  group: "string-search",
+  fn() {
+    "hello world".indexOf("hello") !== -1;
+  },
+});
+
+Deno.bench({
+  name: "includes",
+  group: "string-search",
+  fn() {
+    "hello world".includes("hello");
+  },
+});
+```
+
+## Assertions
+
+Deno provides a standard assertion library:
+
+```typescript
+import {
+  assert,
+  assertEquals,
+  assertExists,
+  assertNotEquals,
+  assertMatch,
+  assertThrows,
+  assertRejects,
+} from "jsr:@std/assert";
+
+Deno.test("assertions", () => {
+  assert(true);
+  assertEquals(1 + 1, 2);
+  assertNotEquals(1, 2);
+  assertExists("hello");
+  assertMatch("hello world", /world/);
+  assertThrows(() => {
+    throw new Error("oops");
+  });
+});
+
+Deno.test("async assertions", async () => {
+  await assertRejects(
+    async () => {
+      throw new Error("async error");
+    },
+    Error,
+    "async error"
+  );
+});
+```
+
+## Best Practices
+
+1. **Use descriptive names**: Make test names clear and descriptive
+2. **One assertion per test**: Keep tests focused on a single behavior
+3. **Use test steps**: Organize related tests with `t.step()`
+4. **Clean up resources**: Use `afterEach` and `afterAll` hooks
+5. **Test edge cases**: Don't just test the happy path
+6. **Use fixtures**: Create reusable test data
+7. **Mock external services**: Don't rely on external APIs in tests
+8. **Test permissions**: Verify permission checks work correctly
+9. **Benchmark critical paths**: Use benchmarks for performance-critical code
+10. **Keep tests fast**: Slow tests discourage running them frequently
+
+## Test Coverage
+
+```bash
+# Generate coverage
+deno test --coverage=coverage
+
+# View coverage summary
+deno coverage coverage/
+
+# Generate HTML report
+deno coverage coverage/ --html
+
+# Generate LCOV report
+deno coverage coverage/ --lcov --output=coverage.lcov
+```
+
+## Permissions
+
+Tests inherit permissions from the CLI by default. You can restrict or expand permissions per test:
+
+```bash
+# Run tests with all permissions
+deno test --allow-all
+
+# Run tests with specific permissions
+deno test --allow-net --allow-read
+
+# Run tests without prompting
+deno test --no-prompt
+```

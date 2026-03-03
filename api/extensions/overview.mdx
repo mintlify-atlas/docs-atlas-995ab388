@@ -1,0 +1,147 @@
+---
+title: Deno Extensions Overview
+description: Overview of Deno's native extensions that provide web platform APIs
+---
+
+Deno's runtime is built on a modular extension system that provides native functionality to JavaScript code. Each extension implements specific web platform APIs or Deno-specific features, bridging the gap between JavaScript and the underlying system.
+
+## What are Extensions?
+
+Extensions (located in `ext/`) are modules that:
+
+- Implement web platform standards (Fetch, WebSocket, Web Crypto, etc.)
+- Provide system access through Rust operations ("ops")
+- Include both Rust and JavaScript code
+- Are registered with the JavaScript runtime at initialization
+
+## Architecture
+
+Each extension consists of:
+
+1. **Rust code** (`lib.rs`, `*.rs`) - Implements the low-level operations (ops) that JavaScript can call
+2. **JavaScript code** (`*.js`) - Provides the high-level APIs that users interact with
+3. **Extension definition** - Declares ops, ESM modules, and dependencies
+
+```rust
+deno_core::extension!(deno_fetch,
+  deps = [ deno_webidl, deno_web ],
+  ops = [
+    op_fetch,
+    op_fetch_send,
+    // ...
+  ],
+  esm = [
+    "20_headers.js",
+    "26_fetch.js",
+  ]
+);
+```
+
+## Core Extensions
+
+### Web Platform APIs
+
+<CardGroup cols={2}>
+  <Card title="Web Extension" icon="globe" href="/api/extensions/web">
+    Core web APIs including streams, encoding, blobs, and events
+  </Card>
+  
+  <Card title="Fetch" icon="download" href="/api/extensions/fetch">
+    HTTP client implementation following the Fetch API standard
+  </Card>
+  
+  <Card title="WebSocket" icon="comments" href="/api/extensions/websocket">
+    WebSocket client and server implementation
+  </Card>
+  
+  <Card title="Web Crypto" icon="lock" href="/api/extensions/crypto">
+    Cryptographic operations following the Web Crypto API
+  </Card>
+</CardGroup>
+
+### Server APIs
+
+<CardGroup cols={2}>
+  <Card title="HTTP Server" icon="server" href="/api/extensions/http">
+    High-performance HTTP/1.1 and HTTP/2 server
+  </Card>
+  
+  <Card title="Web Storage" icon="database" href="/api/extensions/webstorage">
+    localStorage and sessionStorage implementation
+  </Card>
+  
+  <Card title="BroadcastChannel" icon="tower-broadcast" href="/api/extensions/broadcast-channel">
+    Cross-context message broadcasting
+  </Card>
+</CardGroup>
+
+### Graphics and Compute
+
+<CardGroup cols={1}>
+  <Card title="WebGPU" icon="microchip" href="/api/extensions/webgpu">
+    GPU access for graphics and compute operations
+  </Card>
+</CardGroup>
+
+## Extension Dependencies
+
+Extensions can depend on other extensions. Common dependencies include:
+
+- `deno_webidl` - WebIDL type conversions
+- `deno_web` - Core web platform types and utilities
+- `deno_fetch` - HTTP client functionality
+
+## How Extensions Work
+
+### Operations (Ops)
+
+Ops are Rust functions exposed to JavaScript:
+
+```rust
+#[op2]
+pub fn op_example(#[string] input: String) -> String {
+  format!("Hello, {}!", input)
+}
+```
+
+JavaScript can call this through the internal `Deno.core.ops` object.
+
+### Resources
+
+Extensions manage resources (files, sockets, etc.) through resource IDs:
+
+```rust
+pub struct MyResource {
+  data: Vec<u8>,
+}
+
+impl Resource for MyResource {
+  fn name(&self) -> Cow<'_, str> {
+    "myResource".into()
+  }
+}
+
+// Store in resource table
+let rid = state.resource_table.add(MyResource { data });
+```
+
+## Building Custom Extensions
+
+To add a new extension:
+
+1. Create a directory in `ext/`
+2. Implement Rust ops in `lib.rs`
+3. Add JavaScript API in `.js` files
+4. Register the extension in `runtime/worker.rs`
+5. Add tests
+
+## Performance Considerations
+
+- Extensions use `#[op2(fast)]` for optimized hot paths
+- Zero-copy operations with `#[buffer]` and `#[arraybuffer]`
+- Async operations return futures that integrate with Tokio
+- Resource pooling and caching where appropriate
+
+## Learn More
+
+Explore individual extension documentation to learn about specific APIs and their implementations.

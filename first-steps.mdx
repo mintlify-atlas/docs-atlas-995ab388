@@ -1,0 +1,466 @@
+---
+title: First Steps
+description: Learn basic Deno commands and explore the runtime's built-in tooling
+---
+
+# First Steps
+
+Now that you've [installed Deno](/installation) and completed the [quickstart](/quickstart), let's explore Deno's powerful built-in tools and common commands.
+
+## The Deno Command
+
+The `deno` executable includes everything you need for JavaScript and TypeScript development. Let's explore its capabilities.
+
+### Getting Help
+
+View all available commands:
+
+```bash
+deno --help
+```
+
+Get help for a specific command:
+
+```bash
+deno run --help
+deno test --help
+```
+
+### Check Version
+
+See your Deno version and component versions:
+
+```bash
+deno --version
+```
+
+Example output:
+```
+deno 1.40.0 (release, x86_64-apple-darwin)
+v8 11.9.169.7
+typescript 5.3.3
+```
+
+## Core Commands
+
+Let's explore the essential commands you'll use daily.
+
+### Running Code
+
+The `run` command executes JavaScript or TypeScript files:
+
+<CodeGroup>
+```bash Basic
+deno run script.ts
+```
+
+```bash With Permissions
+deno run --allow-net --allow-read server.ts
+```
+
+```bash From URL
+deno run https://deno.land/std/examples/welcome.ts
+```
+
+```bash Watch Mode
+deno run --allow-net --watch server.ts
+```
+</CodeGroup>
+
+### Interactive REPL
+
+Start an interactive Read-Eval-Print Loop:
+
+```bash
+deno
+```
+
+Try it out:
+
+```typescript
+Deno 1.40.0
+exit using ctrl+d, ctrl+c, or close()
+> const greeting = "Hello, Deno!"
+> console.log(greeting)
+Hello, Deno!
+> Deno.version
+{ deno: "1.40.0", v8: "11.9.169.7", typescript: "5.3.3" }
+```
+
+<Tip>
+  The REPL is great for quick experiments and testing snippets!
+</Tip>
+
+### Formatting Code
+
+Deno includes an opinionated code formatter:
+
+```bash
+# Format files in place
+deno fmt
+
+# Check if files are formatted
+deno fmt --check
+
+# Format specific files
+deno fmt script.ts utils.ts
+```
+
+The formatter supports JavaScript, TypeScript, JSON, and Markdown.
+
+### Linting Code
+
+Catch common errors and enforce best practices:
+
+```bash
+# Lint current directory
+deno lint
+
+# Lint specific files
+deno lint src/
+
+# Show available rules
+deno lint --rules
+```
+
+Example output:
+```
+error[no-unused-vars]: `x` is never used
+ --> script.ts:1:7
+  |
+1 | const x = 5;
+  |       ^
+  = hint: Remove unused variable or prefix it with underscore
+```
+
+### Running Tests
+
+Deno has a built-in test runner:
+
+<Steps>
+  <Step title="Create a test file">
+    Create a file ending in `_test.ts` or `.test.ts`:
+    
+    ```typescript add_test.ts
+    import { assertEquals } from "https://deno.land/std/assert/mod.ts";
+    import { add } from "./add.ts";
+    
+    Deno.test("add function", () => {
+      assertEquals(add(2, 3), 5);
+      assertEquals(add(-1, 1), 0);
+    });
+    ```
+  </Step>
+  
+  <Step title="Run your tests">
+    ```bash
+    deno test
+    ```
+    
+    Output:
+    ```
+    running 1 test from ./add_test.ts
+add function ... ok (2ms)
+
+ok | 1 passed | 0 failed (10ms)
+    ```
+  </Step>
+</Steps>
+
+Test command variations:
+
+```bash
+# Run tests with coverage
+deno test --coverage
+
+# Run specific test file
+deno test add_test.ts
+
+# Filter tests by name
+deno test --filter "add"
+
+# Watch mode for tests
+deno test --watch
+```
+
+### Type Checking
+
+Explicitly type-check your code without running it:
+
+```bash
+deno check script.ts
+```
+
+This is useful for:
+- CI/CD pipelines
+- Pre-commit hooks
+- Large codebases where you want to check types without execution
+
+## Working with Dependencies
+
+### Import Maps
+
+Deno supports import maps for managing dependencies:
+
+```json import_map.json
+{
+  "imports": {
+    "std/": "https://deno.land/std@0.200.0/",
+    "oak": "https://deno.land/x/oak@v12.6.1/mod.ts"
+  }
+}
+```
+
+Use it:
+
+```bash
+deno run --import-map=import_map.json main.ts
+```
+
+In your code:
+
+```typescript main.ts
+import { serve } from "std/http/server.ts";
+import { Application } from "oak";
+```
+
+### Caching Dependencies
+
+Deno caches remote dependencies automatically. To explicitly cache:
+
+```bash
+deno cache script.ts
+```
+
+Reload dependencies:
+
+```bash
+deno cache --reload script.ts
+```
+
+Clear the cache:
+
+```bash
+rm -rf $(deno info --json | jq -r .denoDir)
+```
+
+### Info Command
+
+View information about a module and its dependencies:
+
+```bash
+deno info script.ts
+```
+
+Example output:
+```
+local: /path/to/script.ts
+type: TypeScript
+dependencies: 3 unique
+size: 15.2KB
+
+file:///path/to/script.ts (1.5KB)
+├── https://deno.land/std/http/server.ts (8.3KB)
+└── https://deno.land/std/path/mod.ts (5.4KB)
+```
+
+## Built-in Utilities
+
+### Generating Documentation
+
+Generate documentation from your code comments:
+
+```bash
+# View docs in terminal
+deno doc script.ts
+
+# Generate HTML documentation
+deno doc --html --name="My Project" src/
+```
+
+Document your code with JSDoc:
+
+```typescript
+/**
+ * Adds two numbers together.
+ * @param a - First number
+ * @param b - Second number
+ * @returns The sum of a and b
+ */
+export function add(a: number, b: number): number {
+  return a + b;
+}
+```
+
+### Benchmarking
+
+Measure performance with built-in benchmarks:
+
+```typescript bench.ts
+Deno.bench("string concatenation", () => {
+  let str = "";
+  for (let i = 0; i < 1000; i++) {
+    str += "a";
+  }
+});
+
+Deno.bench("array join", () => {
+  const arr = [];
+  for (let i = 0; i < 1000; i++) {
+    arr.push("a");
+  }
+  arr.join("");
+});
+```
+
+Run benchmarks:
+
+```bash
+deno bench
+```
+
+### Compiling to Executable
+
+Compile your Deno program to a standalone executable:
+
+```bash
+deno compile --allow-net --output server server.ts
+```
+
+This creates a binary that can run without Deno installed:
+
+```bash
+./server
+```
+
+<Info>
+  Compiled executables include the Deno runtime, so they're self-contained but larger in size.
+</Info>
+
+## Permission Management
+
+Understanding Deno's permission system is crucial for security.
+
+### Available Permissions
+
+| Flag | Description |
+|------|-------------|
+| `--allow-all` or `-A` | Allow all permissions |
+| `--allow-env` | Allow environment access |
+| `--allow-net` | Allow network access |
+| `--allow-read` | Allow file system read access |
+| `--allow-write` | Allow file system write access |
+| `--allow-run` | Allow running subprocesses |
+| `--allow-ffi` | Allow loading dynamic libraries |
+| `--allow-hrtime` | Allow high-resolution time measurement |
+
+### Granular Permissions
+
+You can grant permissions for specific resources:
+
+```bash
+# Allow reading only from specific directory
+deno run --allow-read=/home/user/data script.ts
+
+# Allow network access to specific domains
+deno run --allow-net=api.example.com script.ts
+
+# Allow running specific commands
+deno run --allow-run=git script.ts
+
+# Multiple specific permissions
+deno run --allow-read=/data --allow-net=api.example.com script.ts
+```
+
+### Permission Prompts
+
+Without explicit permissions, Deno will prompt at runtime:
+
+```
+⚠️  ️Deno requests network access to "api.example.com".
+   Run again with --allow-net to bypass this prompt.
+   Allow? [y/n/A] (y = yes, allow; n = no, deny; A = allow all net permissions)
+```
+
+<Warning>
+  Use `--allow-all` or `-A` only during development. Always use specific permissions in production!
+</Warning>
+
+## Configuration Files
+
+Create a `deno.json` or `deno.jsonc` file to configure your project:
+
+```json deno.json
+{
+  "tasks": {
+    "dev": "deno run --allow-net --watch server.ts",
+    "test": "deno test --coverage",
+    "fmt": "deno fmt",
+    "lint": "deno lint"
+  },
+  "imports": {
+    "std/": "https://deno.land/std@0.200.0/"
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "fmt": {
+    "indentWidth": 2,
+    "lineWidth": 80
+  }
+}
+```
+
+Run tasks with:
+
+```bash
+deno task dev
+deno task test
+```
+
+## Environment Variables
+
+Load environment variables from a `.env` file:
+
+```bash .env
+API_KEY=secret123
+DATABASE_URL=postgres://localhost/mydb
+```
+
+Access in your code:
+
+```typescript
+import { load } from "https://deno.land/std/dotenv/mod.ts";
+
+await load({ export: true });
+
+const apiKey = Deno.env.get("API_KEY");
+console.log(apiKey);
+```
+
+Run with:
+
+```bash
+deno run --allow-env --allow-read script.ts
+```
+
+## Next Steps
+
+You now have a solid foundation in Deno's core functionality. Continue learning:
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Explore all available Deno APIs and runtime features
+  </Card>
+  <Card title="Standard Library" icon="book-open" href="https://jsr.io/@std">
+    Discover utilities for common programming tasks
+  </Card>
+  <Card title="Deploy Your App" icon="rocket" href="https://deno.com/deploy">
+    Deploy your Deno applications to production
+  </Card>
+  <Card title="Examples" icon="flask" href="https://docs.deno.com/examples">
+    Learn from real-world examples and patterns
+  </Card>
+</CardGroup>

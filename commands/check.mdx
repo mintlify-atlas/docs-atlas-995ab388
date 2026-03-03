@@ -1,0 +1,132 @@
+---
+title: deno check
+description: Type-check the dependencies without execution
+---
+
+The `deno check` command type-checks TypeScript and JavaScript files without executing them.
+
+## Usage
+
+```bash
+deno check [OPTIONS] [FILES]...
+```
+
+## Description
+
+Download and type-check files without execution. Unless `--reload` is specified, this command will not re-download already cached dependencies.
+
+## Flags
+
+<ParamField path="--all" type="boolean">
+  Type-check all code, including remote modules and npm packages
+</ParamField>
+
+<ParamField path="--doc" type="boolean">
+  Type-check code blocks in JSDoc as well as actual code
+</ParamField>
+
+<ParamField path="--doc-only" type="boolean">
+  Type-check code blocks in JSDoc and Markdown only
+</ParamField>
+
+<ParamField path="--check-js" type="boolean">
+  Enable type-checking of JavaScript files (equivalent to `compilerOptions.checkJs: true`)
+</ParamField>
+
+<ParamField path="--import-map" type="string">
+  Load import map file
+</ParamField>
+
+<ParamField path="--lock" type="string">
+  Check the specified lock file
+</ParamField>
+
+<ParamField path="--node-modules-dir" type="boolean">
+  Enables or disables the use of a local node_modules folder for npm packages
+</ParamField>
+
+<ParamField path="--no-remote" type="boolean">
+  Do not resolve remote modules
+</ParamField>
+
+<ParamField path="--no-npm" type="boolean">
+  Do not resolve npm modules
+</ParamField>
+
+<ParamField path="--reload" type="boolean | string">
+  Reload source code cache (recompile TypeScript)
+</ParamField>
+
+<ParamField path="--config" type="string">
+  Specify the configuration file
+</ParamField>
+
+<ParamField path="--no-config" type="boolean">
+  Disable automatic loading of the configuration file
+</ParamField>
+
+<ParamField path="--allow-import" type="string">
+  Allow importing from specified hosts
+</ParamField>
+
+<ParamField path="--deny-import" type="string">
+  Deny importing from specified hosts
+</ParamField>
+
+## Examples
+
+### Type-check a file
+
+```bash
+deno check main.ts
+```
+
+### Type-check current directory
+
+When no files are specified, checks the current directory:
+
+```bash
+deno check
+```
+
+### Type-check with all dependencies
+
+Include remote modules and npm packages:
+
+```bash
+deno check --all main.ts
+```
+
+### Type-check JavaScript files
+
+```bash
+deno check --check-js script.js
+```
+
+### Type-check JSDoc comments
+
+Check type annotations in JSDoc:
+
+```bash
+deno check --doc main.ts
+```
+
+### Type-check only documentation
+
+Check code blocks in JSDoc and Markdown without checking the actual source:
+
+```bash
+deno check --doc-only README.md
+```
+
+### Type-check multiple files
+
+```bash
+deno check src/main.ts src/utils.ts
+```
+
+### Type-check with import map
+
+```bash
+deno check --import-map=import_map.json main.ts
+```

@@ -1,0 +1,211 @@
+---
+title: Deno CLI Commands Overview
+description: Complete reference for all Deno command-line interface commands
+---
+
+Deno provides a comprehensive set of CLI commands for running, testing, bundling, and managing your JavaScript and TypeScript projects.
+
+## Execution Commands
+
+### [deno run](/commands/run)
+Run a JavaScript or TypeScript program, or execute a task from your configuration file.
+
+```bash
+deno run main.ts
+deno run --allow-net=google.com main.ts
+```
+
+### [deno serve](/commands/serve)
+Run a server with automatic port binding and request handling.
+
+```bash
+deno serve main.ts
+```
+
+### deno task
+Run a task defined in your deno.json configuration file.
+
+```bash
+deno task dev
+```
+
+### deno repl
+Start an interactive Read-Eval-Print Loop (REPL) for Deno.
+
+```bash
+deno repl
+```
+
+### deno eval
+Evaluate a script from the command line.
+
+```bash
+deno eval "console.log('Hello, World!')"
+```
+
+## Testing & Benchmarking
+
+### [deno test](/commands/test)
+Run tests in your project.
+
+```bash
+deno test
+deno test --filter "my test"
+```
+
+### [deno bench](/commands/bench)
+Run benchmarks to measure code performance.
+
+```bash
+deno bench
+deno bench bench.ts
+```
+
+## Code Quality
+
+### [deno fmt](/commands/fmt)
+Format source files using the built-in code formatter.
+
+```bash
+deno fmt
+deno fmt main.ts
+```
+
+### [deno lint](/commands/lint)
+Lint source files for code quality issues.
+
+```bash
+deno lint
+deno lint --rules
+```
+
+## Bundling & Compilation
+
+### [deno bundle](/commands/bundle)
+Bundle your project into optimized JavaScript files.
+
+```bash
+deno bundle main.ts
+deno bundle --format esm main.ts bundle.js
+```
+
+### [deno compile](/commands/compile)
+Compile a script into a standalone executable.
+
+```bash
+deno compile main.ts
+deno compile --output myapp main.ts
+```
+
+## Documentation
+
+### [deno doc](/commands/doc)
+Generate and show documentation for modules.
+
+```bash
+deno doc
+deno doc --json mod.ts
+deno doc --html mod.ts
+```
+
+## Dependency Management
+
+### deno add
+Add dependencies to your project.
+
+```bash
+deno add jsr:@std/assert
+deno add npm:express
+```
+
+### deno install
+Install dependencies or create a global executable.
+
+```bash
+deno install
+deno install --global --allow-net --allow-read https://deno.land/std/http/file_server.ts
+```
+
+### deno remove
+Remove dependencies from your configuration file.
+
+```bash
+deno remove @std/assert
+```
+
+### deno outdated
+Find and update outdated dependencies.
+
+```bash
+deno outdated
+```
+
+## Utility Commands
+
+### deno check
+Type-check the dependencies without running.
+
+```bash
+deno check main.ts
+```
+
+### deno info
+Show information about cache or source file.
+
+```bash
+deno info
+deno info main.ts
+```
+
+### deno cache
+Cache dependencies.
+
+```bash
+deno cache main.ts
+```
+
+### deno clean
+Remove the cache directory.
+
+```bash
+deno clean
+```
+
+### deno upgrade
+Upgrade Deno to the latest or specified version.
+
+```bash
+deno upgrade
+deno upgrade 1.45.0
+deno upgrade canary
+```
+
+## Global Flags
+
+These flags are available for most commands:
+
+- `--config <FILE>` - Load configuration from a file
+- `--no-config` - Disable automatic config file detection
+- `--import-map <FILE>` - Load import map file
+- `--lock <FILE>` - Check the specified lock file
+- `--no-lock` - Disable lock file
+- `--no-remote` - Do not resolve remote modules
+- `--reload` - Reload source code cache
+- `--unstable` - Enable unstable features
+- `--quiet` - Suppress diagnostic output
+- `--log-level <LEVEL>` - Set log level (trace, debug, info)
+
+## Permission Flags
+
+Deno is secure by default. Use these flags to grant permissions:
+
+- `--allow-all` - Allow all permissions
+- `--allow-env[=<VARIABLE>]` - Allow environment access
+- `--allow-read[=<PATH>]` - Allow file system read access
+- `--allow-write[=<PATH>]` - Allow file system write access
+- `--allow-net[=<DOMAIN>]` - Allow network access
+- `--allow-run[=<PROGRAM>]` - Allow running subprocesses
+- `--allow-sys[=<API>]` - Allow access to system information
+- `--allow-ffi[=<PATH>]` - Allow loading dynamic libraries
+
+Each permission flag also has a corresponding `--deny-*` variant for denying specific permissions.

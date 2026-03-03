@@ -1,0 +1,313 @@
+---
+title: Building Deno from Source
+description: Complete guide to building Deno from source code including prerequisites, platform-specific instructions, and troubleshooting
+---
+
+If you want to contribute to Deno or build a custom version, you'll need to build Deno from source. If you just want to use Deno, you can [download a prebuilt executable](https://docs.deno.com/runtime/manual/getting_started/installation).
+
+## Prerequisites
+
+Before building Deno, you need to install several required tools and dependencies.
+
+### Rust
+
+<Warning>
+  Deno requires a specific release of Rust. The version required is specified in the `rust-toolchain.toml` file. Deno may not support building on other versions or on Rust Nightly releases.
+</Warning>
+
+[Install or update Rust](https://www.rust-lang.org/tools/install) and verify the installation:
+
+```bash
+rustc -V
+cargo -V
+```
+
+### Native Compilers and Linkers
+
+Many components of Deno require a native compiler to build optimized native functions.
+
+<Tabs>
+  <Tab title="Linux/WSL">
+    Install LLVM 17 and required build tools:
+    
+    ```bash
+    wget https://apt.llvm.org/llvm.sh
+    chmod +x llvm.sh
+    ./llvm.sh 17
+    apt install --install-recommends -y cmake libglib2.0-dev
+    ```
+  </Tab>
+  
+  <Tab title="macOS">
+    Install XCode Command Line Tools:
+    
+    ```bash
+    xcode-select --install
+    ```
+    
+    Install CMake (required but not included with Command Line Tools):
+    
+    ```bash
+    brew install cmake
+    ```
+    
+    **For Apple M1/M2 (aarch64):**
+    
+    Install LLVM and LLD:
+    
+    ```bash
+    brew install llvm lld
+    # Add /opt/homebrew/opt/llvm/bin/ to $PATH
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    1. Install [Visual Studio Community 2019](https://www.visualstudio.com/downloads/) with the "Desktop development with C++" toolkit
+    
+    2. Select these required components:
+       - Visual C++ tools for CMake
+       - Windows 10 SDK (10.0.17763.0)
+       - Testing tools core features - Build Tools
+       - Visual C++ ATL for x86 and x64
+       - Visual C++ MFC for x86 and x64
+       - C++/CLI support
+       - VC++ 2015.3 v14.00 (v140) toolset for desktop
+    
+    3. Enable "Debugging Tools for Windows":
+       - Go to Control Panel → Programs → Programs and Features
+       - Select "Windows Software Development Kit - Windows 10"
+       - Click Change → Change → Check "Debugging Tools For Windows" → Change → Finish
+       
+       Or download from [Debugging Tools for Windows](https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/)
+  </Tab>
+</Tabs>
+
+### Protocol Buffers Compiler
+
+Deno requires the [Protocol Buffers compiler](https://grpc.io/docs/protoc-installation/).
+
+<Tabs>
+  <Tab title="Linux/WSL">
+    ```bash
+    apt install -y protobuf-compiler
+    protoc --version  # Ensure version is 3+
+    ```
+  </Tab>
+  
+  <Tab title="macOS">
+    ```bash
+    brew install protobuf
+    protoc --version  # Ensure version is 3+
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    Download the latest binary release from [GitHub](https://github.com/protocolbuffers/protobuf/releases/latest).
+  </Tab>
+</Tabs>
+
+### Python 3
+
+Deno requires [Python 3](https://www.python.org/downloads) for running Web Platform Tests (WPT).
+
+<Note>
+  Ensure that a suffix-less `python` or `python.exe` exists in your `PATH` and refers to Python 3.
+</Note>
+
+## Cloning the Repository
+
+Deno uses git submodules, so you must clone with the `--recurse-submodules` flag.
+
+<Tabs>
+  <Tab title="Linux/macOS/WSL">
+    ```bash
+    git clone --recurse-submodules https://github.com/denoland/deno.git
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Enable Developer Mode">
+        [Enable "Developer Mode"](https://www.google.com/search?q=windows+enable+developer+mode) in Windows settings (required for symlinks without administrator privileges).
+      </Step>
+      
+      <Step title="Verify Git version">
+        Ensure you're using git version 2.19.2.windows.1 or newer.
+      </Step>
+      
+      <Step title="Configure symlinks">
+        Set `core.symlinks=true` before cloning:
+        
+        ```bash
+        git config --global core.symlinks true
+        git clone --recurse-submodules https://github.com/denoland/deno.git
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Building Deno
+
+The easiest way to build Deno is by using a precompiled version of V8.
+
+<Note>
+  **For WSL users:** Make sure you have sufficient memory allocated in `.wslconfig`. It is recommended that you allocate at least 16GB.
+</Note>
+
+### Standard Build
+
+Build using precompiled V8 (recommended for most development):
+
+```bash
+cargo build -vv
+```
+
+### Build from Source with V8
+
+If you're doing lower-level V8 development or using a platform without precompiled V8:
+
+```bash
+V8_FROM_SOURCE=1 cargo build -vv
+```
+
+<Warning>
+  When building V8 from source, there may be additional dependencies. See [rusty_v8's README](https://github.com/denoland/rusty_v8) for details.
+</Warning>
+
+### Build Variants
+
+<CodeGroup>
+  ```bash Debug Build (default)
+  # Standard debug build
+  cargo build -vv
+  ```
+
+  ```bash Fast Development Build
+  # Build only the main binary (faster iteration)
+  cargo build --bin deno
+  ```
+
+  ```bash Release Build
+  # Optimized release build (slow to compile, fast to run)
+  cargo build --release
+  ```
+
+  ```bash Check Only
+  # Check for compilation errors without building
+  cargo check
+  ```
+</CodeGroup>
+
+### Troubleshooting Build Issues
+
+If you encounter build errors:
+
+```bash
+# Ensure you have the latest code
+git pull origin main
+
+# Clean and rebuild
+cargo clean && cargo build -vv
+```
+
+## Running Your Build
+
+After building, the binary is located at `./target/debug/deno`:
+
+<CodeGroup>
+  ```bash Run a Script
+  ./target/debug/deno run tests/testdata/run/002_hello.ts
+  ```
+
+  ```bash Run with Permissions
+  ./target/debug/deno run --allow-net --allow-read script.ts
+  ```
+
+  ```bash Eval Code
+  ./target/debug/deno eval 'console.log("Hello from dev build")'
+  ```
+
+  ```bash Start REPL
+  ./target/debug/deno
+  ```
+</CodeGroup>
+
+## Running Tests
+
+Deno has a comprehensive test suite written in both Rust and TypeScript.
+
+### Rust Tests
+
+Run Rust tests during the build process:
+
+```bash
+cargo test -vv
+```
+
+### TypeScript Tests
+
+Run the TypeScript unit tests:
+
+<CodeGroup>
+  ```bash All Unit Tests
+  target/debug/deno test -A --unstable \
+    --lock=tools/deno.lock.json \
+    --config tests/config/deno.json \
+    tests/unit
+  ```
+
+  ```bash Specific Test File
+  target/debug/deno test -A --unstable \
+    --lock=tools/deno.lock.json \
+    --config tests/config/deno.json \
+    tests/unit/os_test.ts
+  ```
+</CodeGroup>
+
+## Working with Multiple Crates
+
+If you're working on changes that span multiple Deno crates, you can use Cargo's patch feature.
+
+### Recommended Directory Structure
+
+```
+denoland/
+  deno/
+  deno_core/
+  deno_ast/
+  ...
+```
+
+### Using Cargo Patch
+
+<Tabs>
+  <Tab title="Command Line">
+    Override dependency paths on the command line:
+    
+    ```bash
+    cargo build --config 'patch.crates-io.deno_ast.path="../deno_ast"'
+    ```
+  </Tab>
+  
+  <Tab title="Cargo.toml">
+    For longer development sessions, add to `Cargo.toml` (remember to remove before committing):
+    
+    ```toml
+    [patch.crates-io]
+    deno_ast = { path = "../deno_ast" }
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  The version in your local crate's `Cargo.toml` must match the version Deno expects. Use `cargo search <dependency_name>` to check versions.
+</Warning>
+
+## Next Steps
+
+Now that you have Deno built from source:
+
+- Learn about the [development workflow](/contributing/development-guide)
+- Understand the [Deno architecture](/contributing/architecture)
+- Start [contributing](/contributing/overview)

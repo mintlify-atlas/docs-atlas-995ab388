@@ -1,0 +1,365 @@
+---
+title: deno run
+description: Run JavaScript or TypeScript programs with Deno
+---
+
+The `deno run` command executes JavaScript or TypeScript programs with the Deno runtime.
+
+## Usage
+
+```bash
+deno run [OPTIONS] <SCRIPT> [SCRIPT_ARGS]...
+```
+
+## Basic Examples
+
+```bash
+# Run a local file
+deno run main.ts
+
+# Run a remote file
+deno run https://deno.land/std/examples/welcome.ts
+
+# Run with permissions
+deno run --allow-net --allow-read server.ts
+
+# Run with arguments
+deno run main.ts --port 8000
+
+# Run from stdin
+cat script.ts | deno run -
+```
+
+## Permission Flags
+
+<ParamField path="--allow-all" type="boolean">
+  Allow all permissions (equivalent to enabling all permission flags)
+</ParamField>
+
+<ParamField path="--allow-env" type="string">
+  Allow environment access
+  
+  ```bash
+  # Allow all environment variables
+  deno run --allow-env script.ts
+  
+  # Allow specific variables
+  deno run --allow-env=HOME,USER script.ts
+  ```
+</ParamField>
+
+<ParamField path="--allow-read" type="string">
+  Allow file system read access
+  
+  ```bash
+  # Allow reading all files
+  deno run --allow-read script.ts
+  
+  # Allow reading specific directories
+  deno run --allow-read=/tmp,/var/log script.ts
+  ```
+</ParamField>
+
+<ParamField path="--allow-write" type="string">
+  Allow file system write access
+  
+  ```bash
+  # Allow writing all files
+  deno run --allow-write script.ts
+  
+  # Allow writing to specific directory
+  deno run --allow-write=./output script.ts
+  ```
+</ParamField>
+
+<ParamField path="--allow-net" type="string">
+  Allow network access
+  
+  ```bash
+  # Allow all network access
+  deno run --allow-net script.ts
+  
+  # Allow specific domains
+  deno run --allow-net=deno.land,github.com script.ts
+  ```
+</ParamField>
+
+<ParamField path="--allow-run" type="string">
+  Allow running subprocesses
+  
+  ```bash
+  # Allow running any subprocess
+  deno run --allow-run script.ts
+  
+  # Allow running specific programs
+  deno run --allow-run=git,npm script.ts
+  ```
+</ParamField>
+
+<ParamField path="--allow-sys" type="string">
+  Allow access to system information
+  
+  ```bash
+  # Allow all system APIs
+  deno run --allow-sys script.ts
+  
+  # Allow specific system APIs
+  deno run --allow-sys=osRelease,hostname script.ts
+  ```
+</ParamField>
+
+<ParamField path="--allow-ffi" type="string">
+  Allow loading dynamic libraries (Foreign Function Interface)
+  
+  ```bash
+  deno run --allow-ffi script.ts
+  deno run --allow-ffi=./lib.so script.ts
+  ```
+</ParamField>
+
+## Deny Flags
+
+Each permission has a corresponding deny flag:
+
+<ParamField path="--deny-env" type="string">
+  Deny environment access
+</ParamField>
+
+<ParamField path="--deny-read" type="string">
+  Deny file system read access
+</ParamField>
+
+<ParamField path="--deny-write" type="string">
+  Deny file system write access
+</ParamField>
+
+<ParamField path="--deny-net" type="string">
+  Deny network access
+</ParamField>
+
+<ParamField path="--deny-run" type="string">
+  Deny running subprocesses
+</ParamField>
+
+<ParamField path="--deny-sys" type="string">
+  Deny system information access
+</ParamField>
+
+<ParamField path="--deny-ffi" type="string">
+  Deny FFI access
+</ParamField>
+
+## Runtime Options
+
+<ParamField path="--no-prompt" type="boolean">
+  Disable permission prompts (automatically deny any required permissions)
+</ParamField>
+
+<ParamField path="--cached-only" type="boolean">
+  Require that remote dependencies are already cached
+</ParamField>
+
+<ParamField path="--location" type="string">
+  Set a custom location for the script
+  
+  ```bash
+  deno run --location https://example.com script.ts
+  ```
+</ParamField>
+
+<ParamField path="--seed" type="number">
+  Set the seed for the random number generator
+  
+  ```bash
+  deno run --seed=42 script.ts
+  ```
+</ParamField>
+
+<ParamField path="--v8-flags" type="string">
+  Set V8 command line options
+  
+  ```bash
+  deno run --v8-flags=--max-old-space-size=8192 script.ts
+  ```
+</ParamField>
+
+## Watch Mode
+
+<ParamField path="--watch" type="string">
+  Watch for file changes and restart automatically
+  
+  ```bash
+  # Watch the script and its dependencies
+  deno run --watch main.ts
+  
+  # Watch specific paths
+  deno run --watch=src/,config/ main.ts
+  
+  # Watch with exclude patterns
+  deno run --watch --watch-exclude=test/ main.ts
+  ```
+</ParamField>
+
+<ParamField path="--watch-hmr" type="boolean">
+  Watch for file changes and reload using Hot Module Replacement
+  
+  ```bash
+  deno run --watch-hmr main.ts
+  ```
+</ParamField>
+
+<ParamField path="--no-clear-screen" type="boolean">
+  Don't clear the screen when watch mode restarts
+</ParamField>
+
+## Type Checking
+
+<ParamField path="--check" type="string">
+  Enable type checking (optionally specify which modules to check)
+  
+  ```bash
+  # Type-check all modules
+  deno run --check main.ts
+  
+  # Type-check only local modules
+  deno run --check=local main.ts
+  ```
+</ParamField>
+
+<ParamField path="--no-check" type="boolean">
+  Skip type checking (default for `deno run`)
+</ParamField>
+
+## Module Resolution
+
+<ParamField path="--import-map" type="string">
+  Load import map file
+  
+  ```bash
+  deno run --import-map=import_map.json main.ts
+  ```
+</ParamField>
+
+<ParamField path="--node-modules-dir" type="boolean">
+  Create a node_modules directory for npm packages
+  
+  ```bash
+  deno run --node-modules-dir main.ts
+  ```
+</ParamField>
+
+<ParamField path="--vendor" type="boolean">
+  Enable vendoring of remote modules
+</ParamField>
+
+## Coverage
+
+<ParamField path="--coverage" type="string">
+  Collect coverage profile data into the specified directory
+  
+  ```bash
+  deno run --coverage=cov_profile main.ts
+  ```
+</ParamField>
+
+## Configuration
+
+<ParamField path="--config" type="string">
+  Load configuration from a file
+  
+  ```bash
+  deno run --config=deno.json main.ts
+  ```
+</ParamField>
+
+<ParamField path="--no-config" type="boolean">
+  Disable automatic configuration file detection
+</ParamField>
+
+## Lock File
+
+<ParamField path="--lock" type="string">
+  Check the specified lock file
+  
+  ```bash
+  deno run --lock=deno.lock main.ts
+  ```
+</ParamField>
+
+<ParamField path="--no-lock" type="boolean">
+  Disable lock file
+</ParamField>
+
+<ParamField path="--frozen" type="boolean">
+  Error if lock file is out of date
+</ParamField>
+
+## Environment
+
+<ParamField path="--env" type="string">
+  Load environment variables from a file
+  
+  ```bash
+  deno run --env=.env main.ts
+  deno run --env=.env.local,.env main.ts
+  ```
+</ParamField>
+
+## Inspector
+
+<ParamField path="--inspect" type="string">
+  Activate inspector on host:port (default: 127.0.0.1:9229)
+  
+  ```bash
+  deno run --inspect main.ts
+  deno run --inspect=0.0.0.0:9229 main.ts
+  ```
+</ParamField>
+
+<ParamField path="--inspect-brk" type="string">
+  Activate inspector and break at start of user script
+</ParamField>
+
+<ParamField path="--inspect-wait" type="string">
+  Activate inspector and wait for debugger to connect before running user code
+</ParamField>
+
+## Examples
+
+### Basic Server
+
+```typescript
+// server.ts
+Deno.serve(() => new Response("Hello, World!"));
+```
+
+```bash
+deno run --allow-net server.ts
+```
+
+### File Operations
+
+```typescript
+// file-ops.ts
+const text = await Deno.readTextFile("./data.txt");
+await Deno.writeTextFile("./output.txt", text.toUpperCase());
+```
+
+```bash
+deno run --allow-read=./data.txt --allow-write=./output.txt file-ops.ts
+```
+
+### Subprocess Execution
+
+```typescript
+// git-info.ts
+const command = new Deno.Command("git", {
+  args: ["log", "-1"],
+});
+const { stdout } = await command.output();
+console.log(new TextDecoder().decode(stdout));
+```
+
+```bash
+deno run --allow-run=git git-info.ts
+```

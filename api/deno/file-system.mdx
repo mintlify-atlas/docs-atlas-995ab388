@@ -1,0 +1,459 @@
+---
+title: File System APIs
+description: Deno file system APIs for reading, writing, and managing files and directories
+---
+
+Deno provides a comprehensive set of APIs for interacting with the file system. All file system operations require appropriate permissions.
+
+## Reading Files
+
+### Deno.readFile()
+
+Reads and returns the entire contents of a file as a `Uint8Array`.
+
+```typescript
+function readFile(
+  path: string | URL,
+  options?: ReadFileOptions
+): Promise<Uint8Array>
+```
+
+<ParamField path="path" type="string | URL" required>
+  The path to the file to read
+</ParamField>
+
+<ParamField path="options.signal" type="AbortSignal">
+  An abort signal to allow cancellation of the file read operation
+</ParamField>
+
+**Example:**
+
+```typescript
+const decoder = new TextDecoder("utf-8");
+const data = await Deno.readFile("hello.txt");
+console.log(decoder.decode(data));
+```
+
+Requires `allow-read` permission.
+
+### Deno.readTextFile()
+
+Reads and returns the entire contents of a file as a UTF-8 decoded string.
+
+```typescript
+function readTextFile(
+  path: string | URL,
+  options?: ReadFileOptions
+): Promise<string>
+```
+
+**Example:**
+
+```typescript
+const data = await Deno.readTextFile("hello.txt");
+console.log(data);
+```
+
+Requires `allow-read` permission.
+
+### Deno.readFileSync()
+
+Synchronously reads and returns the entire contents of a file.
+
+```typescript
+function readFileSync(path: string | URL): Uint8Array
+```
+
+**Example:**
+
+```typescript
+const decoder = new TextDecoder("utf-8");
+const data = Deno.readFileSync("hello.txt");
+console.log(decoder.decode(data));
+```
+
+## Writing Files
+
+### Deno.writeFile()
+
+Writes data to a file, creating a new file if needed or overwriting by default.
+
+```typescript
+function writeFile(
+  path: string | URL,
+  data: Uint8Array | ReadableStream<Uint8Array>,
+  options?: WriteFileOptions
+): Promise<void>
+```
+
+<ParamField path="path" type="string | URL" required>
+  The path to the file to write
+</ParamField>
+
+<ParamField path="data" type="Uint8Array | ReadableStream<Uint8Array>" required>
+  The data to write to the file
+</ParamField>
+
+<ParamField path="options.append" type="boolean" default="false">
+  If true, will append to the file instead of overwriting
+</ParamField>
+
+<ParamField path="options.create" type="boolean" default="true">
+  Allow creating a new file if it doesn't exist
+</ParamField>
+
+<ParamField path="options.createNew" type="boolean" default="false">
+  If true, no file, directory, or symlink is allowed to exist at the target location
+</ParamField>
+
+<ParamField path="options.mode" type="number">
+  Permissions to use if creating the file (defaults to 0o666)
+</ParamField>
+
+**Example:**
+
+```typescript
+const encoder = new TextEncoder();
+const data = encoder.encode("Hello world\n");
+await Deno.writeFile("hello1.txt", data);  // overwrite or create
+await Deno.writeFile("hello2.txt", data, { create: false });  // only if exists
+await Deno.writeFile("hello3.txt", data, { mode: 0o777 });  // set permissions
+await Deno.writeFile("hello4.txt", data, { append: true });  // append
+```
+
+Requires `allow-write` permission, and `allow-read` if `options.create` is false.
+
+### Deno.writeTextFile()
+
+Writes string data to a file.
+
+```typescript
+function writeTextFile(
+  path: string | URL,
+  data: string | ReadableStream<string>,
+  options?: WriteFileOptions
+): Promise<void>
+```
+
+**Example:**
+
+```typescript
+await Deno.writeTextFile("hello.txt", "Hello world\n");
+```
+
+## Opening Files
+
+### Deno.open()
+
+Opens a file and returns an instance of `Deno.FsFile`.
+
+```typescript
+function open(
+  path: string | URL,
+  options?: OpenOptions
+): Promise<FsFile>
+```
+
+<ParamField path="options.read" type="boolean" default="true">
+  Sets the option for read access
+</ParamField>
+
+<ParamField path="options.write" type="boolean" default="false">
+  Sets the option for write access
+</ParamField>
+
+<ParamField path="options.append" type="boolean" default="false">
+  Sets the option for append mode
+</ParamField>
+
+<ParamField path="options.truncate" type="boolean" default="false">
+  Sets the option for truncating a previous file
+</ParamField>
+
+<ParamField path="options.create" type="boolean" default="false">
+  Sets the option to allow creating a new file
+</ParamField>
+
+<ParamField path="options.createNew" type="boolean" default="false">
+  No file, directory, or symlink is allowed to exist at the target location
+</ParamField>
+
+**Example:**
+
+```typescript
+using file = await Deno.open("/foo/bar.txt", { read: true, write: true });
+// Do work with file
+// File automatically closes when going out of scope
+```
+
+## Directories
+
+### Deno.mkdir()
+
+Creates a new directory with the specified path.
+
+```typescript
+function mkdir(
+  path: string | URL,
+  options?: MkdirOptions
+): Promise<void>
+```
+
+<ParamField path="options.recursive" type="boolean" default="false">
+  If true, intermediate directories will also be created
+</ParamField>
+
+<ParamField path="options.mode" type="number">
+  Permissions to use when creating the directory (defaults to 0o777)
+</ParamField>
+
+**Example:**
+
+```typescript
+await Deno.mkdir("new_dir");
+await Deno.mkdir("nested/directories", { recursive: true });
+await Deno.mkdir("restricted_access_dir", { mode: 0o700 });
+```
+
+### Deno.readDir()
+
+Reads the directory given by path and returns an async iterable of directory entries.
+
+```typescript
+function readDir(path: string | URL): AsyncIterable<DirEntry>
+```
+
+**Example:**
+
+```typescript
+for await (const dirEntry of Deno.readDir("/")) {
+  console.log(dirEntry.name);
+}
+```
+
+## File Operations
+
+### Deno.remove()
+
+Removes the named file or directory.
+
+```typescript
+function remove(
+  path: string | URL,
+  options?: RemoveOptions
+): Promise<void>
+```
+
+<ParamField path="options.recursive" type="boolean" default="false">
+  If true, path will be removed even if it's a non-empty directory
+</ParamField>
+
+**Example:**
+
+```typescript
+await Deno.remove("/path/to/empty_dir/or/file");
+await Deno.remove("/path/to/populated_dir/or/file", { recursive: true });
+```
+
+### Deno.rename()
+
+Renames (moves) `oldpath` to `newpath`.
+
+```typescript
+function rename(
+  oldpath: string | URL,
+  newpath: string | URL
+): Promise<void>
+```
+
+**Example:**
+
+```typescript
+await Deno.rename("old/path", "new/path");
+```
+
+### Deno.copyFile()
+
+Copies the contents and permissions of one file to another.
+
+```typescript
+function copyFile(
+  fromPath: string | URL,
+  toPath: string | URL
+): Promise<void>
+```
+
+**Example:**
+
+```typescript
+await Deno.copyFile("from.txt", "to.txt");
+```
+
+## File Information
+
+### Deno.stat()
+
+Resolves to a `FileInfo` for the specified path. Will always follow symlinks.
+
+```typescript
+function stat(path: string | URL): Promise<FileInfo>
+```
+
+<ResponseField name="isFile" type="boolean">
+  True if this is info for a regular file
+</ResponseField>
+
+<ResponseField name="isDirectory" type="boolean">
+  True if this is info for a regular directory
+</ResponseField>
+
+<ResponseField name="isSymlink" type="boolean">
+  True if this is info for a symlink
+</ResponseField>
+
+<ResponseField name="size" type="number">
+  The size of the file, in bytes
+</ResponseField>
+
+<ResponseField name="mtime" type="Date | null">
+  The last modification time of the file
+</ResponseField>
+
+<ResponseField name="atime" type="Date | null">
+  The last access time of the file
+</ResponseField>
+
+**Example:**
+
+```typescript
+import { assert } from "jsr:@std/assert";
+
+const fileInfo = await Deno.stat("hello.txt");
+assert(fileInfo.isFile);
+```
+
+### Deno.lstat()
+
+Returns file info for a path. If path is a symlink, information for the symlink will be returned.
+
+```typescript
+function lstat(path: string | URL): Promise<FileInfo>
+```
+
+## Symbolic Links
+
+### Deno.symlink()
+
+Creates `newpath` as a symbolic link to `oldpath`.
+
+```typescript
+function symlink(
+  oldpath: string | URL,
+  newpath: string | URL,
+  options?: SymlinkOptions
+): Promise<void>
+```
+
+**Example:**
+
+```typescript
+await Deno.symlink("old/name", "new/name");
+```
+
+### Deno.readLink()
+
+Resolves to the full path destination of the named symbolic link.
+
+```typescript
+function readLink(path: string | URL): Promise<string>
+```
+
+**Example:**
+
+```typescript
+await Deno.symlink("./test.txt", "./test_link.txt");
+const target = await Deno.readLink("./test_link.txt");
+```
+
+## Temporary Files
+
+### Deno.makeTempFile()
+
+Creates a new temporary file in the default directory for temporary files.
+
+```typescript
+function makeTempFile(options?: MakeTempOptions): Promise<string>
+```
+
+<ParamField path="options.dir" type="string">
+  Directory where the temporary file should be created
+</ParamField>
+
+<ParamField path="options.prefix" type="string">
+  String that should precede the random portion of the filename
+</ParamField>
+
+<ParamField path="options.suffix" type="string">
+  String that should follow the random portion of the filename
+</ParamField>
+
+**Example:**
+
+```typescript
+const tmpFileName = await Deno.makeTempFile();
+const tmpFileName2 = await Deno.makeTempFile({ prefix: 'my_temp' });
+```
+
+### Deno.makeTempDir()
+
+Creates a new temporary directory.
+
+```typescript
+function makeTempDir(options?: MakeTempOptions): Promise<string>
+```
+
+**Example:**
+
+```typescript
+const tempDirName = await Deno.makeTempDir();
+const tempDirName2 = await Deno.makeTempDir({ prefix: 'my_temp' });
+```
+
+## Watching File System
+
+### Deno.watchFs()
+
+Watch for file system events against one or more paths.
+
+```typescript
+function watchFs(
+  paths: string | string[],
+  options?: { recursive: boolean }
+): FsWatcher
+```
+
+**Example:**
+
+```typescript
+const watcher = Deno.watchFs("/");
+for await (const event of watcher) {
+  console.log(">>>> event", event);
+  // { kind: "create", paths: [ "/foo.txt" ] }
+}
+
+// Stop watching
+watcher.close();
+```
+
+## Permissions
+
+Most file system operations require specific permissions:
+
+- `--allow-read` - Required for reading files and directories
+- `--allow-write` - Required for writing, creating, and deleting files
+
+You can grant permissions for specific paths:
+
+```bash
+deno run --allow-read=/etc --allow-write=/tmp script.ts
+```

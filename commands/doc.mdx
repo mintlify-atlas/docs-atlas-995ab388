@@ -1,0 +1,317 @@
+---
+title: deno doc
+description: Generate and show documentation for Deno modules
+---
+
+The `deno doc` command generates and displays documentation from TypeScript/JavaScript source code.
+
+## Usage
+
+```bash
+deno doc [OPTIONS] [SOURCE_FILES]...
+```
+
+## Basic Examples
+
+```bash
+# Show documentation for built-in Deno APIs
+deno doc
+
+# Show documentation for a file
+deno doc mod.ts
+
+# Show documentation for a specific symbol
+deno doc mod.ts MyClass
+
+# Generate JSON output
+deno doc --json mod.ts
+
+# Generate HTML documentation
+deno doc --html mod.ts
+```
+
+## Output Formats
+
+<ParamField path="--json" type="boolean">
+  Output documentation as JSON
+  
+  ```bash
+  deno doc --json mod.ts > docs.json
+  ```
+</ParamField>
+
+<ParamField path="--html" type="boolean">
+  Generate HTML documentation
+  
+  ```bash
+  # Generate to default location (./docs/)
+  deno doc --html mod.ts
+  
+  # Specify output directory
+  deno doc --html --output ./documentation mod.ts
+  ```
+</ParamField>
+
+## HTML Options
+
+<ParamField path="--output" type="string">
+  Output directory for HTML documentation
+  
+  ```bash
+  deno doc --html --output ./public/docs mod.ts
+  ```
+</ParamField>
+
+<ParamField path="--name" type="string">
+  Project name for HTML documentation
+  
+  ```bash
+  deno doc --html --name "My Library" mod.ts
+  ```
+</ParamField>
+
+## Filtering Options
+
+<ParamField path="--filter" type="string">
+  Filter documentation to specific symbol
+  
+  ```bash
+  # Show docs for specific class
+  deno doc mod.ts MyClass
+  
+  # Show docs for function
+  deno doc mod.ts myFunction
+  
+  # Show nested symbol
+  deno doc mod.ts MyClass.method
+  ```
+</ParamField>
+
+<ParamField path="--private" type="boolean">
+  Include private symbols in output
+  
+  ```bash
+  deno doc --private mod.ts
+  ```
+</ParamField>
+
+## Linting
+
+<ParamField path="--lint" type="boolean">
+  Check for documentation issues
+  
+  ```bash
+  # Check documentation quality
+  deno doc --lint mod.ts
+  ```
+</ParamField>
+
+## Writing Documentation
+
+### JSDoc Comments
+
+Deno uses JSDoc comments for documentation:
+
+```typescript
+/**
+ * Represents a user in the system.
+ */
+export interface User {
+  /** The user's unique identifier */
+  id: string;
+  
+  /** The user's display name */
+  name: string;
+  
+  /** The user's email address */
+  email: string;
+}
+
+/**
+ * Greets a user by name.
+ * 
+ * @param name The name of the person to greet
+ * @returns A greeting message
+ * 
+ * @example
+ * ```ts
+ * const message = greet("Alice");
+ * console.log(message); // "Hello, Alice!"
+ * ```
+ */
+export function greet(name: string): string {
+  return `Hello, ${name}!`;
+}
+
+/**
+ * A simple counter class.
+ */
+export class Counter {
+  private count = 0;
+  
+  /**
+   * Increments the counter by a specified amount.
+   * 
+   * @param amount The amount to increment by (default: 1)
+   */
+  increment(amount = 1): void {
+    this.count += amount;
+  }
+  
+  /**
+   * Gets the current count value.
+   * 
+   * @returns The current count
+   */
+  getCount(): number {
+    return this.count;
+  }
+}
+```
+
+### JSDoc Tags
+
+Supported JSDoc tags:
+
+- `@param` - Document function parameters
+- `@returns` - Document return values
+- `@example` - Provide usage examples
+- `@deprecated` - Mark as deprecated
+- `@see` - Reference related documentation
+- `@throws` - Document thrown exceptions
+- `@typeParam` - Document type parameters
+- `@category` - Categorize symbols in HTML output
+
+### Examples in Documentation
+
+```typescript
+/**
+ * Calculates the factorial of a number.
+ * 
+ * @param n The number to calculate factorial for
+ * @returns The factorial of n
+ * @throws {Error} If n is negative
+ * 
+ * @example Basic usage
+ * ```ts
+ * import { factorial } from "./math.ts";
+ * 
+ * const result = factorial(5);
+ * console.log(result); // 120
+ * ```
+ * 
+ * @example Error handling
+ * ```ts
+ * try {
+ *   factorial(-1);
+ * } catch (error) {
+ *   console.error(error.message); // "n must be non-negative"
+ * }
+ * ```
+ */
+export function factorial(n: number): number {
+  if (n < 0) throw new Error("n must be non-negative");
+  if (n === 0) return 1;
+  return n * factorial(n - 1);
+}
+```
+
+## Examples
+
+### View Built-in APIs
+
+```bash
+# Show all Deno APIs
+deno doc
+
+# Show specific API
+deno doc --filter Deno.serve
+
+# Show file system APIs
+deno doc --filter Deno.readTextFile
+```
+
+### Generate Module Documentation
+
+```bash
+# Terminal output
+deno doc mod.ts
+
+# JSON for processing
+deno doc --json mod.ts | jq '.[] | {name, kind}'
+
+# HTML documentation site
+deno doc --html --name "My Library" --output ./docs mod.ts
+```
+
+### Document Multiple Files
+
+```bash
+# Document all exports
+deno doc src/*.ts
+
+# Generate HTML for multiple files
+deno doc --html --output ./docs src/mod.ts src/utils.ts
+```
+
+### Check Documentation Quality
+
+```bash
+# Lint documentation
+deno doc --lint mod.ts
+
+# Include private members in lint check
+deno doc --lint --private mod.ts
+```
+
+### Integration with CI
+
+```bash
+#!/bin/bash
+# Check that all public APIs are documented
+
+if ! deno doc --lint src/mod.ts; then
+  echo "Documentation is incomplete or has errors"
+  exit 1
+fi
+
+echo "Documentation check passed"
+```
+
+### Generate Documentation Site
+
+```bash
+# Generate full documentation site
+deno doc \
+  --html \
+  --name "My Awesome Library" \
+  --output ./documentation \
+  src/mod.ts
+
+# Serve the documentation locally
+cd documentation && python -m http.server 8000
+```
+
+## HTML Documentation Features
+
+When using `--html`, Deno generates a full documentation website with:
+
+- **Search functionality** - Full-text search across all symbols
+- **Type information** - Detailed type signatures and relationships
+- **Cross-references** - Clickable links between related symbols
+- **Code examples** - Syntax-highlighted examples from JSDoc
+- **Category organization** - Group symbols using `@category` tag
+- **Dark mode** - Automatic dark/light theme support
+
+## Configuration
+
+HTML generation can be customized in `deno.json`:
+
+```json
+{
+  "doc": {
+    "include": ["src/"],
+    "exclude": ["src/internal/"]
+  }
+}
+```

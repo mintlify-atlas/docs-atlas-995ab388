@@ -1,0 +1,119 @@
+---
+title: deno uninstall
+description: Uninstall a dependency or an executable script
+---
+
+The `deno uninstall` command removes globally installed executable scripts or removes dependencies from a project.
+
+## Usage
+
+```bash
+# Uninstall a global executable
+deno uninstall [NAME]
+deno uninstall -g [NAME]
+
+# Remove project dependencies
+deno uninstall [PACKAGES]...
+```
+
+## Global Uninstallation
+
+Remove globally installed executable scripts.
+
+```bash
+deno uninstall [NAME]
+deno uninstall -g [NAME]
+```
+
+### Flags
+
+<ParamField path="-g, --global" type="boolean">
+  Uninstall a global executable script
+</ParamField>
+
+<ParamField path="--root" type="string">
+  Installation root directory (defaults to $HOME/.deno)
+</ParamField>
+
+## Local Uninstallation
+
+Remove dependencies from `deno.json` or `package.json`.
+
+```bash
+deno uninstall [PACKAGES]...
+```
+
+### Flags
+
+<ParamField path="--lockfile-only" type="boolean">
+  Only update the lockfile without removing cached packages
+</ParamField>
+
+## Examples
+
+### Uninstall global executables
+
+#### Uninstall by name
+
+```bash
+deno uninstall file-server
+```
+
+#### Uninstall with explicit global flag
+
+```bash
+deno uninstall -g serve
+```
+
+#### Uninstall from custom root
+
+```bash
+deno uninstall --root /usr/local my-tool
+```
+
+### Remove project dependencies
+
+#### Remove a single dependency
+
+```bash
+deno uninstall @std/path
+```
+
+#### Remove multiple dependencies
+
+```bash
+deno uninstall @std/path @std/assert
+```
+
+#### Remove npm packages
+
+```bash
+deno uninstall chalk express
+```
+
+#### Update lockfile only
+
+Remove from config but don't delete cached files:
+
+```bash
+deno uninstall --lockfile-only @std/testing
+```
+
+## What Gets Removed
+
+When uninstalling a global executable, the following files are removed:
+
+- The executable script (`.cmd` on Windows)
+- Associated configuration directory (`.{name}/`)
+- Any lockfiles or config files for the installation
+
+When removing project dependencies:
+
+- Package is removed from `deno.json` imports or `package.json` dependencies
+- Lockfile is updated
+- Cached files remain in the cache directory
+
+## See Also
+
+- [`deno install`](/commands/install) - Install dependencies or executables
+- [`deno cache`](/commands/cache) - Cache dependencies

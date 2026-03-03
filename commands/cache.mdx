@@ -1,0 +1,121 @@
+---
+title: deno cache
+description: Cache and compile remote dependencies
+---
+
+The `deno cache` command downloads and compiles modules and their dependencies into the local cache without executing any code.
+
+## Usage
+
+```bash
+deno cache [OPTIONS] [FILE]...
+```
+
+## Description
+
+Download and compile a module with all of its static dependencies and save them in the local cache. Future runs of this module will trigger no downloads or compilation unless `--reload` is specified.
+
+## Flags
+
+<ParamField path="--reload" type="boolean | string">
+  Reload source code cache (recompile TypeScript). Can optionally specify specific modules to reload
+</ParamField>
+
+<ParamField path="--lock" type="string">
+  Check the specified lock file
+</ParamField>
+
+<ParamField path="--lock-write" type="boolean">
+  Force overwriting the lock file
+</ParamField>
+
+<ParamField path="--import-map" type="string">
+  Load import map file
+</ParamField>
+
+<ParamField path="--node-modules-dir" type="boolean">
+  Enables or disables the use of a local node_modules folder for npm packages
+</ParamField>
+
+<ParamField path="--vendor" type="boolean">
+  Toggles local vendor folder usage for remote modules and a node_modules folder for npm packages
+</ParamField>
+
+<ParamField path="--config" type="string">
+  Specify the configuration file
+</ParamField>
+
+<ParamField path="--no-config" type="boolean">
+  Disable automatic loading of the configuration file
+</ParamField>
+
+<ParamField path="--no-remote" type="boolean">
+  Do not resolve remote modules
+</ParamField>
+
+<ParamField path="--no-npm" type="boolean">
+  Do not resolve npm modules
+</ParamField>
+
+<ParamField path="--check" type="boolean | string">
+  Enable type-checking. Can optionally specify "all" to type-check all code including remote modules
+</ParamField>
+
+<ParamField path="--allow-scripts" type="string">
+  Allow running npm lifecycle scripts for specified packages
+</ParamField>
+
+<ParamField path="--allow-import" type="string">
+  Allow importing from specified hosts
+</ParamField>
+
+<ParamField path="--deny-import" type="string">
+  Deny importing from specified hosts
+</ParamField>
+
+## Examples
+
+### Cache a module and its dependencies
+
+```bash
+deno cache main.ts
+```
+
+### Cache a remote module
+
+```bash
+deno cache jsr:@std/http/file-server
+deno cache https://deno.land/std/http/file_server.ts
+```
+
+### Cache with type checking
+
+```bash
+deno cache --check main.ts
+```
+
+### Cache multiple modules
+
+```bash
+deno cache mod1.ts mod2.ts mod3.ts
+```
+
+### Cache with import map
+
+```bash
+deno cache --import-map=import_map.json main.ts
+```
+
+### Reload and recache
+
+Force redownload and recompilation:
+
+```bash
+deno cache --reload main.ts
+```
+
+Reload only specific modules:
+
+```bash
+deno cache --reload=jsr:@std/http main.ts
+```

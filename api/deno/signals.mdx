@@ -1,0 +1,388 @@
+---
+title: Signal Handling
+description: Deno APIs for handling operating system signals
+---
+
+Deno provides APIs for listening to and handling operating system signals. These signals are used for inter-process communication and system events.
+
+## Signal Types
+
+Deno supports the following signal types:
+
+```typescript
+type Signal =
+  | "SIGABRT"
+  | "SIGALRM"
+  | "SIGBREAK"
+  | "SIGBUS"
+  | "SIGCHLD"
+  | "SIGCONT"
+  | "SIGEMT"
+  | "SIGFPE"
+  | "SIGHUP"
+  | "SIGILL"
+  | "SIGINFO"
+  | "SIGINT"
+  | "SIGIO"
+  | "SIGPOLL"
+  | "SIGUNUSED"
+  | "SIGKILL"
+  | "SIGPIPE"
+  | "SIGPROF"
+  | "SIGPWR"
+  | "SIGQUIT"
+  | "SIGSEGV"
+  | "SIGSTKFLT"
+  | "SIGSTOP"
+  | "SIGSYS"
+  | "SIGTERM"
+  | "SIGTRAP"
+  | "SIGTSTP"
+  | "SIGTTIN"
+  | "SIGTTOU"
+  | "SIGURG"
+  | "SIGUSR1"
+  | "SIGUSR2"
+  | "SIGVTALRM"
+  | "SIGWINCH"
+  | "SIGXCPU"
+  | "SIGXFSZ";
+```
+
+## Adding Signal Listeners
+
+### Deno.addSignalListener()
+
+Registers a function as a listener for the given signal event.
+
+```typescript
+function addSignalListener(signal: Signal, handler: () => void): void
+```
+
+<ParamField path="signal" type="Signal" required>
+  The signal to listen for
+</ParamField>
+
+<ParamField path="handler" type="() => void" required>
+  The function to call when the signal is received
+</ParamField>
+
+**Example:**
+
+```typescript
+Deno.addSignalListener("SIGTERM", () => {
+  console.log("Received SIGTERM, shutting down gracefully...");
+  // Cleanup code here
+  Deno.exit(0);
+});
+
+console.log("Server running, press Ctrl+C to stop");
+```
+
+## Removing Signal Listeners
+
+### Deno.removeSignalListener()
+
+Removes a signal listener that has been registered with `addSignalListener()`.
+
+```typescript
+function removeSignalListener(
+  signal: Signal,
+  handler: () => void
+): void
+```
+
+<ParamField path="signal" type="Signal" required>
+  The signal to remove the listener from
+</ParamField>
+
+<ParamField path="handler" type="() => void" required>
+  The handler function to remove
+</ParamField>
+
+**Example:**
+
+```typescript
+const handler = () => {
+  console.log("SIGTERM received!");
+};
+
+Deno.addSignalListener("SIGTERM", handler);
+
+// Later, remove the listener
+Deno.removeSignalListener("SIGTERM", handler);
+```
+
+## Common Signals
+
+### SIGINT
+
+Interrupt signal, typically sent when the user presses Ctrl+C.
+
+```typescript
+Deno.addSignalListener("SIGINT", () => {
+  console.log("\nReceived SIGINT (Ctrl+C)");
+  Deno.exit(0);
+});
+```
+
+### SIGTERM
+
+Termination signal, used to request a process to terminate gracefully.
+
+```typescript
+let server: Deno.HttpServer;
+
+Deno.addSignalListener("SIGTERM", async () => {
+  console.log("Received SIGTERM, shutting down...");
+  await server.shutdown();
+  Deno.exit(0);
+});
+```
+
+### SIGHUP
+
+Hangup signal, often used to reload configuration.
+
+```typescript
+Deno.addSignalListener("SIGHUP", () => {
+  console.log("Received SIGHUP, reloading configuration...");
+  loadConfig();
+});
+```
+
+### SIGUSR1 and SIGUSR2
+
+User-defined signals for custom application behavior.
+
+```typescript
+Deno.addSignalListener("SIGUSR1", () => {
+  console.log("Received SIGUSR1, toggling debug mode...");
+  debugMode = !debugMode;
+});
+
+Deno.addSignalListener("SIGUSR2", () => {
+  console.log("Received SIGUSR2, dumping statistics...");
+  console.log(getStatistics());
+});
+```
+
+## Examples
+
+### Graceful Shutdown
+
+```typescript
+const server = Deno.serve({ port: 8000 }, () => new Response("Hello"));
+
+let isShuttingDown = false;
+
+const shutdown = async () => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  
+  console.log("Shutting down gracefully...");
+  
+  // Stop accepting new connections
+  await server.shutdown();
+  
+  // Cleanup resources
+  // ... close database connections, etc.
+  
+  console.log("Shutdown complete");
+  Deno.exit(0);
+};
+
+Deno.addSignalListener("SIGTERM", shutdown);
+Deno.addSignalListener("SIGINT", shutdown);
+
+console.log("Server running on http://localhost:8000");
+```
+
+### Configuration Reload
+
+```typescript
+let config = loadConfig();
+
+function loadConfig() {
+  return JSON.parse(Deno.readTextFileSync("./config.json"));
+}
+
+Deno.addSignalListener("SIGHUP", () => {
+  console.log("Reloading configuration...");
+  try {
+    config = loadConfig();
+    console.log("Configuration reloaded successfully");
+  } catch (error) {
+    console.error("Failed to reload configuration:", error);
+  }
+});
+
+console.log("Send SIGHUP to reload configuration");
+console.log(`kill -HUP ${Deno.pid}`);
+```
+
+### Debug Mode Toggle
+
+```typescript
+let debugMode = false;
+
+Deno.addSignalListener("SIGUSR1", () => {
+  debugMode = !debugMode;
+  console.log(`Debug mode ${debugMode ? "enabled" : "disabled"}`);
+});
+
+function log(message: string) {
+  if (debugMode) {
+    console.log(`[DEBUG] ${message}`);
+  }
+}
+
+console.log("Send SIGUSR1 to toggle debug mode");
+console.log(`kill -USR1 ${Deno.pid}`);
+```
+
+### Multiple Signal Handlers
+
+```typescript
+class SignalManager {
+  private handlers = new Map<string, Set<() => void>>();
+
+  add(signal: Deno.Signal, handler: () => void) {
+    if (!this.handlers.has(signal)) {
+      this.handlers.set(signal, new Set());
+      Deno.addSignalListener(signal, () => {
+        const handlers = this.handlers.get(signal);
+        if (handlers) {
+          for (const h of handlers) {
+            try {
+              h();
+            } catch (error) {
+              console.error(`Error in signal handler:`, error);
+            }
+          }
+        }
+      });
+    }
+    this.handlers.get(signal)!.add(handler);
+  }
+
+  remove(signal: Deno.Signal, handler: () => void) {
+    const handlers = this.handlers.get(signal);
+    if (handlers) {
+      handlers.delete(handler);
+    }
+  }
+}
+
+const signals = new SignalManager();
+
+signals.add("SIGINT", () => console.log("Handler 1"));
+signals.add("SIGINT", () => console.log("Handler 2"));
+```
+
+### Timeout on Shutdown
+
+```typescript
+const SHUTDOWN_TIMEOUT = 10000; // 10 seconds
+
+async function gracefulShutdown() {
+  console.log("Starting graceful shutdown...");
+  
+  const timeout = setTimeout(() => {
+    console.error("Shutdown timeout exceeded, forcing exit");
+    Deno.exit(1);
+  }, SHUTDOWN_TIMEOUT);
+  
+  try {
+    // Cleanup operations
+    await server.shutdown();
+    await database.close();
+    
+    clearTimeout(timeout);
+    console.log("Graceful shutdown complete");
+    Deno.exit(0);
+  } catch (error) {
+    console.error("Error during shutdown:", error);
+    Deno.exit(1);
+  }
+}
+
+Deno.addSignalListener("SIGTERM", gracefulShutdown);
+Deno.addSignalListener("SIGINT", gracefulShutdown);
+```
+
+## Platform Support
+
+### Unix-like Systems (Linux, macOS, BSD)
+
+Most signals are supported on Unix-like systems.
+
+### Windows
+
+On Windows, only the following signals are supported:
+
+- `SIGINT` - Ctrl+C
+- `SIGBREAK` - Ctrl+Break
+
+Other signal types will throw an error on Windows.
+
+**Cross-platform example:**
+
+```typescript
+const isWindows = Deno.build.os === "windows";
+
+if (isWindows) {
+  Deno.addSignalListener("SIGINT", shutdown);
+  Deno.addSignalListener("SIGBREAK", shutdown);
+} else {
+  Deno.addSignalListener("SIGINT", shutdown);
+  Deno.addSignalListener("SIGTERM", shutdown);
+  Deno.addSignalListener("SIGHUP", reloadConfig);
+}
+```
+
+## Sending Signals
+
+Use the `Deno.kill()` function to send signals to processes:
+
+```typescript
+// Send SIGTERM to a process
+Deno.kill(pid, "SIGTERM");
+
+// Send SIGKILL to forcefully terminate
+Deno.kill(pid, "SIGKILL");
+
+// Test if a process exists (signal 0)
+Deno.kill(pid, 0);
+```
+
+From the command line:
+
+```bash
+# Send SIGTERM
+kill <pid>
+
+# Send SIGHUP
+kill -HUP <pid>
+
+# Send SIGUSR1
+kill -USR1 <pid>
+
+# Forcefully terminate with SIGKILL
+kill -9 <pid>
+```
+
+## Best Practices
+
+1. **Always Handle SIGINT and SIGTERM**: These are the standard signals for requesting graceful shutdown
+2. **Cleanup Resources**: Use signal handlers to properly close connections, files, and other resources
+3. **Set Timeouts**: Implement timeouts for shutdown procedures to prevent hanging
+4. **Log Signal Receipt**: Log when signals are received for debugging
+5. **Test Signal Handling**: Verify your signal handlers work correctly
+6. **Be Platform-Aware**: Check the operating system when using Unix-specific signals
+7. **Avoid Blocking Operations**: Keep signal handlers fast and non-blocking
+8. **Don't Call Deno.exit() in All Handlers**: Sometimes you want to handle a signal without exiting
+
+## Permissions
+
+Signal handling does not require any special permissions. However, the code executed in signal handlers may require appropriate permissions (e.g., `--allow-read` for reading config files on SIGHUP).

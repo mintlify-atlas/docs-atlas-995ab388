@@ -1,0 +1,104 @@
+---
+title: deno info
+description: Show info about cache or info related to source file
+---
+
+The `deno info` command provides information about the Deno cache and module dependencies.
+
+## Usage
+
+```bash
+# Show cache directories and Deno version
+deno info
+
+# Show dependency tree for a module
+deno info [FILE]
+deno info https://deno.land/std/http/file_server.ts
+```
+
+## Flags
+
+<ParamField path="--json" type="boolean">
+  Output information in JSON format
+</ParamField>
+
+<ParamField path="--reload" type="boolean">
+  Reload source code cache (recompile TypeScript)
+</ParamField>
+
+<ParamField path="--import-map" type="string">
+  Load import map file
+</ParamField>
+
+<ParamField path="--node-modules-dir" type="boolean">
+  Enables or disables the use of a local node_modules folder for npm packages
+</ParamField>
+
+<ParamField path="--vendor" type="boolean">
+  Toggles local vendor folder usage for remote modules and a node_modules folder for npm packages
+</ParamField>
+
+<ParamField path="--config" type="string">
+  Specify the configuration file
+</ParamField>
+
+<ParamField path="--no-config" type="boolean">
+  Disable automatic loading of the configuration file
+</ParamField>
+
+<ParamField path="--lock" type="string">
+  Check the specified lock file
+</ParamField>
+
+<ParamField path="--no-remote" type="boolean">
+  Do not resolve remote modules
+</ParamField>
+
+<ParamField path="--no-npm" type="boolean">
+  Do not resolve npm modules
+</ParamField>
+
+## Examples
+
+### Display cache information
+
+Show Deno version and cache directory locations:
+
+```bash
+deno info
+```
+
+Output:
+```
+Deno version: 2.1.0
+DENO_DIR location: /Users/username/Library/Caches/deno
+Remote modules cache: /Users/username/Library/Caches/deno/deps
+npm modules cache: /Users/username/Library/Caches/deno/npm
+Emitted modules cache: /Users/username/Library/Caches/deno/gen
+Language server registries cache: /Users/username/Library/Caches/deno/registries
+Origin storage: /Users/username/Library/Caches/deno/location_data
+Web cache storage: /Users/username/Library/Caches/deno/web_cache
+```
+
+### Show module dependency tree
+
+Display the full dependency graph for a module:
+
+```bash
+deno info https://deno.land/std/http/file_server.ts
+```
+
+### JSON output
+
+Get information in JSON format for programmatic use:
+
+```bash
+deno info --json
+deno info --json https://deno.land/std/http/file_server.ts
+```
+
+### Check module with import map
+
+```bash
+deno info --import-map=import_map.json main.ts
+```

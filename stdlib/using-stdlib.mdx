@@ -1,0 +1,337 @@
+---
+title: "Using Standard Library Modules"
+description: "Learn how to import and use Deno Standard Library modules in your projects"
+---
+
+## Importing Standard Library Modules
+
+The Deno Standard Library is published on JSR (JavaScript Registry) under the `@std` namespace. You can import modules directly using JSR specifiers.
+
+### Basic Import Syntax
+
+```typescript
+// Import specific functions from a module
+import { assertEquals, assertExists } from "@std/assert";
+
+// Import entire module
+import * as path from "@std/path";
+
+// Import with version specifier
+import { parse } from "@std/flags@1.0.0";
+```
+
+<Info>
+  Deno automatically resolves `@std` imports from JSR. No additional configuration is required.
+</Info>
+
+## Practical Examples
+
+Let's explore common use cases for standard library modules.
+
+### Working with File Paths
+
+The `@std/path` module provides cross-platform path manipulation:
+
+```typescript
+import { join, dirname, basename, extname } from "@std/path";
+
+// Join path segments
+const filePath = join("src", "utils", "helper.ts");
+console.log(filePath); // "src/utils/helper.ts"
+
+// Get directory name
+const dir = dirname(filePath);
+console.log(dir); // "src/utils"
+
+// Get file name
+const file = basename(filePath);
+console.log(file); // "helper.ts"
+
+// Get file extension
+const ext = extname(filePath);
+console.log(ext); // ".ts"
+```
+
+### File System Operations
+
+The `@std/fs` module provides utilities for file system operations:
+
+```typescript
+import { ensureDir, exists, copy } from "@std/fs";
+
+// Ensure a directory exists (creates if it doesn't)
+await ensureDir("./data/logs");
+
+// Check if a file or directory exists
+const fileExists = await exists("./config.json");
+
+if (fileExists) {
+  // Copy file to backup
+  await copy("./config.json", "./config.backup.json");
+}
+```
+
+### Parsing Command-Line Arguments
+
+The `@std/flags` module makes argument parsing simple:
+
+```typescript
+import { parse } from "@std/flags";
+
+// Parse command-line arguments
+const args = parse(Deno.args, {
+  string: ["name", "output"],
+  boolean: ["verbose", "help"],
+  default: {
+    output: "./dist",
+    verbose: false,
+  },
+});
+
+console.log(args);
+// Running: deno run main.ts --name="My App" --verbose
+// Output: { name: "My App", output: "./dist", verbose: true, _: [] }
+```
+
+### Testing with Assertions
+
+The `@std/assert` and `@std/expect` modules provide powerful testing utilities:
+
+```typescript
+import { assertEquals, assertThrows } from "@std/assert";
+import { expect } from "@std/expect";
+
+Deno.test("array operations", () => {
+  const numbers = [1, 2, 3, 4, 5];
+  
+  // Using assert functions
+  assertEquals(numbers.length, 5);
+  assertEquals(numbers[0], 1);
+  
+  // Using expect (BDD style)
+  expect(numbers).toHaveLength(5);
+  expect(numbers).toContain(3);
+});
+
+Deno.test("function throws error", () => {
+  assertThrows(
+    () => {
+      throw new Error("Something went wrong");
+    },
+    Error,
+    "Something went wrong"
+  );
+});
+```
+
+### Working with Async Operations
+
+The `@std/async` module provides utilities for async programming:
+
+```typescript
+import { delay, debounce } from "@std/async";
+
+// Simple delay
+await delay(1000); // Wait 1 second
+
+// Debounce function calls
+const debouncedSave = debounce(async (data: string) => {
+  console.log("Saving:", data);
+  await Deno.writeTextFile("./data.txt", data);
+}, 500);
+
+// Multiple calls within 500ms will be debounced
+debouncedSave("Hello");
+debouncedSave("Hello World"); // Only this will execute
+```
+
+### HTTP Server Utilities
+
+The `@std/http` module provides utilities for building HTTP servers:
+
+```typescript
+import { serveDir } from "@std/http/file-server";
+import { route } from "@std/http/route";
+
+Deno.serve((req) => {
+  const url = new URL(req.url);
+  
+  // Serve static files from ./public directory
+  if (url.pathname.startsWith("/static")) {
+    return serveDir(req, {
+      fsRoot: "./public",
+      urlRoot: "static",
+    });
+  }
+  
+  // Handle routes
+  return route(req, {
+    "/": () => new Response("Welcome to my API"),
+    "/health": () => new Response(JSON.stringify({ status: "ok" })),
+  });
+});
+```
+
+### Encoding and Decoding
+
+The `@std/encoding` module supports various encoding formats:
+
+```typescript
+import { encodeBase64, decodeBase64 } from "@std/encoding/base64";
+import { parse as parseCSV } from "@std/encoding/csv";
+import { parse as parseYAML } from "@std/encoding/yaml";
+
+// Base64 encoding
+const data = new TextEncoder().encode("Hello, Deno!");
+const encoded = encodeBase64(data);
+console.log(encoded); // "SGVsbG8sIERlbm8h"
+
+const decoded = decodeBase64(encoded);
+console.log(new TextDecoder().decode(decoded)); // "Hello, Deno!"
+
+// Parse CSV
+const csvContent = await Deno.readTextFile("./data.csv");
+const records = parseCSV(csvContent, {
+  skipFirstRow: true,
+});
+
+// Parse YAML
+const yamlContent = await Deno.readTextFile("./config.yaml");
+const config = parseYAML(yamlContent);
+```
+
+### Working with Collections
+
+The `@std/collections` module provides powerful array and object utilities:
+
+```typescript
+import {
+  distinct,
+  groupBy,
+  chunk,
+  sortBy,
+} from "@std/collections";
+
+const users = [
+  { id: 1, name: "Alice", role: "admin" },
+  { id: 2, name: "Bob", role: "user" },
+  { id: 3, name: "Charlie", role: "admin" },
+  { id: 4, name: "David", role: "user" },
+];
+
+// Group by role
+const byRole = groupBy(users, (user) => user.role);
+console.log(byRole);
+// { admin: [...], user: [...] }
+
+// Sort by name
+const sorted = sortBy(users, (user) => user.name);
+
+// Get distinct roles
+const roles = distinct(users.map(u => u.role));
+console.log(roles); // ["admin", "user"]
+
+// Split into chunks
+const chunks = chunk(users, 2);
+console.log(chunks.length); // 2 (chunks of 2 users each)
+```
+
+## Version Pinning
+
+For production applications, it's recommended to pin specific versions:
+
+```typescript
+// Pin to exact version
+import { assertEquals } from "@std/assert@1.0.0";
+
+// Pin to major version (receives minor and patch updates)
+import { join } from "@std/path@^1.0.0";
+
+// Pin to minor version (receives only patch updates)
+import { parse } from "@std/flags@~1.2.0";
+```
+
+<Warning>
+  In production, always pin to specific versions to ensure stability and prevent unexpected breaking changes.
+</Warning>
+
+## Using deno.json for Dependencies
+
+You can manage standard library dependencies in your `deno.json` configuration:
+
+```json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "@std/path": "jsr:@std/path@^1.0.0",
+    "@std/fs": "jsr:@std/fs@^1.0.0"
+  }
+}
+```
+
+Then import without version specifiers:
+
+```typescript
+import { assertEquals } from "@std/assert";
+import { join } from "@std/path";
+```
+
+<Tip>
+  Using `deno.json` for imports makes it easier to update versions and manage dependencies across your project.
+</Tip>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Import only what you need">
+    Instead of importing entire modules, import only the functions you use. This improves tree-shaking and reduces bundle size.
+    
+    ```typescript
+    // Good
+    import { join, basename } from "@std/path";
+    
+    // Avoid
+    import * as path from "@std/path";
+    ```
+  </Accordion>
+  
+  <Accordion title="Use the latest stable versions">
+    Regularly check for updates to standard library modules and update to the latest stable versions to get bug fixes and improvements.
+    
+    ```bash
+    # Check for outdated dependencies
+    deno outdated
+    ```
+  </Accordion>
+  
+  <Accordion title="Leverage TypeScript types">
+    The standard library is fully typed. Use TypeScript to catch errors early and improve code quality.
+    
+    ```typescript
+    import { join } from "@std/path";
+    
+    // TypeScript will catch type errors
+    const path: string = join("src", "main.ts");
+    ```
+  </Accordion>
+  
+  <Accordion title="Read module documentation">
+    Each module has comprehensive documentation on JSR. Review the docs to understand all available functions and their usage.
+    
+    Visit [jsr.io/@std](https://jsr.io/@std) to explore module documentation.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+
+<Card title="JSR Integration" icon="link" href="/stdlib/jsr-integration">
+  Learn more about how the standard library integrates with JSR
+</Card>
+
+<Card title="Browse Modules" icon="box" href="https://jsr.io/@std">
+  Explore all available standard library modules on JSR
+</Card>
+
+</CardGroup>

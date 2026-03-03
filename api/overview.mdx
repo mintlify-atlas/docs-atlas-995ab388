@@ -1,0 +1,406 @@
+---
+title: "Deno Runtime APIs Overview"
+description: "Comprehensive guide to Deno's runtime APIs, including file system, networking, processes, and more"
+---
+
+Deno provides a rich set of runtime APIs through the global `Deno` namespace. These APIs give you access to system resources, file operations, networking, processes, and more.
+
+## Deno Namespace Structure
+
+The Deno runtime exposes its APIs through the global `Deno` object. Here are the main categories of APIs available:
+
+<CardGroup cols={2}>
+  <Card title="File System" icon="folder-open">
+    Read, write, and manage files and directories
+  </Card>
+  <Card title="Network" icon="network-wired">
+    TCP, TLS, UDP connections and DNS resolution
+  </Card>
+  <Card title="Processes" icon="terminal">
+    Spawn and manage subprocesses
+  </Card>
+  <Card title="Permissions" icon="lock">
+    Fine-grained security controls
+  </Card>
+</CardGroup>
+
+## File System APIs
+
+Deno provides comprehensive file system operations through both synchronous and asynchronous APIs.
+
+### Reading Files
+
+<CodeGroup>
+```typescript Reading Text Files
+// Read a text file
+const text = await Deno.readTextFile("./example.txt");
+console.log(text);
+
+// Synchronous version
+const textSync = Deno.readTextFileSync("./example.txt");
+```
+
+```typescript Reading Binary Files
+// Read a binary file
+const data = await Deno.readFile("./image.png");
+console.log(data); // Uint8Array
+
+// Synchronous version
+const dataSync = Deno.readFileSync("./image.png");
+```
+</CodeGroup>
+
+### Writing Files
+
+<CodeGroup>
+```typescript Writing Text
+// Write text to a file
+await Deno.writeTextFile("./output.txt", "Hello, Deno!");
+
+// Synchronous version
+Deno.writeTextFileSync("./output.txt", "Hello, Deno!");
+```
+
+```typescript Writing Binary Data
+// Write binary data
+const encoder = new TextEncoder();
+const data = encoder.encode("Hello, Deno!");
+await Deno.writeFile("./output.bin", data);
+
+// Synchronous version
+Deno.writeFileSync("./output.bin", data);
+```
+</CodeGroup>
+
+### File Operations
+
+```typescript File System Operations
+// Create a directory
+await Deno.mkdir("./new-dir", { recursive: true });
+
+// Copy a file
+await Deno.copyFile("./source.txt", "./dest.txt");
+
+// Rename/move a file
+await Deno.rename("./old-name.txt", "./new-name.txt");
+
+// Remove a file or directory
+await Deno.remove("./file.txt");
+await Deno.remove("./directory", { recursive: true });
+
+// Get file info
+const fileInfo = await Deno.stat("./file.txt");
+console.log(fileInfo.isFile, fileInfo.size, fileInfo.mtime);
+```
+
+### Working with Directories
+
+```typescript Directory Operations
+// Read directory contents
+for await (const entry of Deno.readDir("./my-directory")) {
+  console.log(entry.name, entry.isFile, entry.isDirectory);
+}
+
+// Get current working directory
+const cwd = Deno.cwd();
+console.log(cwd);
+
+// Change working directory
+Deno.chdir("/path/to/directory");
+```
+
+### FsFile API
+
+For advanced file operations, use the `FsFile` class:
+
+```typescript Advanced File Operations
+// Open a file with specific options
+const file = await Deno.open("./data.txt", {
+  read: true,
+  write: true,
+  create: true,
+});
+
+try {
+  // Read from file
+  const buffer = new Uint8Array(100);
+  const bytesRead = await file.read(buffer);
+  
+  // Write to file
+  const encoder = new TextEncoder();
+  const data = encoder.encode("New content");
+  await file.write(data);
+  
+  // Seek to position
+  await file.seek(0, Deno.SeekMode.Start);
+  
+  // Truncate file
+  await file.truncate(50);
+  
+  // Sync to disk
+  await file.sync();
+} finally {
+  file.close();
+}
+```
+
+## Network APIs
+
+Deno provides powerful networking capabilities for both TCP and UDP protocols.
+
+### TCP Connections
+
+<CodeGroup>
+```typescript TCP Client
+// Connect to a TCP server
+const conn = await Deno.connect({
+  hostname: "example.com",
+  port: 80,
+});
+
+const encoder = new TextEncoder();
+await conn.write(encoder.encode("GET / HTTP/1.1\r\n\r\n"));
+
+const buffer = new Uint8Array(1024);
+const bytesRead = await conn.read(buffer);
+
+conn.close();
+```
+
+```typescript TCP Server
+// Start a TCP listener
+const listener = Deno.listen({ port: 8080 });
+
+console.log("Server listening on port 8080");
+
+for await (const conn of listener) {
+  // Handle connection
+  handleConnection(conn);
+}
+
+async function handleConnection(conn: Deno.Conn) {
+  const buffer = new Uint8Array(1024);
+  const n = await conn.read(buffer);
+  if (n) {
+    await conn.write(buffer.subarray(0, n));
+  }
+  conn.close();
+}
+```
+</CodeGroup>
+
+### TLS/SSL Connections
+
+```typescript TLS Connections
+// Connect with TLS
+const conn = await Deno.connectTls({
+  hostname: "example.com",
+  port: 443,
+});
+
+// Start TLS listener
+const listener = Deno.listenTls({
+  port: 8443,
+  certFile: "./cert.pem",
+  keyFile: "./key.pem",
+});
+
+// Upgrade existing connection to TLS
+const tlsConn = await Deno.startTls(conn, { hostname: "example.com" });
+```
+
+### DNS Resolution
+
+```typescript DNS Queries
+// Resolve DNS records
+const addresses = await Deno.resolveDns("example.com", "A");
+console.log(addresses); // ["93.184.216.34"]
+
+// Resolve different record types
+const mxRecords = await Deno.resolveDns("example.com", "MX");
+const txtRecords = await Deno.resolveDns("example.com", "TXT");
+```
+
+## Process APIs
+
+Manage subprocesses and system processes.
+
+### Spawning Processes
+
+```typescript Subprocess Management
+// Spawn a subprocess
+const command = new Deno.Command("echo", {
+  args: ["Hello, World!"],
+  stdout: "piped",
+  stderr: "piped",
+});
+
+const { code, stdout, stderr } = await command.output();
+
+const decoder = new TextDecoder();
+console.log(decoder.decode(stdout)); // "Hello, World!"
+
+// Spawn with streaming output
+const child = command.spawn();
+const output = await child.output();
+```
+
+### Process Information
+
+```typescript Process Info
+// Get process ID
+const pid = Deno.pid;
+
+// Send signal to process
+Deno.kill(pid, "SIGTERM");
+
+// Get resource usage
+const cpuUsage = Deno.cpuUsage();
+console.log(cpuUsage.user, cpuUsage.system);
+
+const memoryUsage = Deno.memoryUsage();
+console.log(memoryUsage.rss, memoryUsage.heapUsed);
+```
+
+## Environment & System Info
+
+```typescript System Information
+// Environment variables
+const home = Deno.env.get("HOME");
+Deno.env.set("MY_VAR", "value");
+Deno.env.delete("MY_VAR");
+
+// System information
+const os = Deno.build.os; // "linux", "darwin", "windows"
+const arch = Deno.build.arch; // "x86_64", "aarch64"
+
+const hostname = Deno.hostname();
+const osRelease = Deno.osRelease();
+const loadavg = Deno.loadavg();
+
+// Exit the process
+Deno.exit(0);
+```
+
+## Permissions API
+
+Deno's security model is based on explicit permissions.
+
+```typescript Permission Management
+// Query permission status
+const readStatus = await Deno.permissions.query({ name: "read", path: "/etc" });
+console.log(readStatus.state); // "granted", "denied", or "prompt"
+
+// Request permission
+const netStatus = await Deno.permissions.request({ name: "net", host: "example.com" });
+
+// Revoke permission
+await Deno.permissions.revoke({ name: "read" });
+
+// Check multiple permissions
+const writeStatus = await Deno.permissions.query({ name: "write" });
+const envStatus = await Deno.permissions.query({ name: "env" });
+```
+
+<Note>
+All permission-requiring APIs will throw a `PermissionDenied` error if the necessary permission has not been granted.
+</Note>
+
+## HTTP Server
+
+Deno provides a high-performance HTTP server API.
+
+```typescript HTTP Server
+// Simple HTTP server
+Deno.serve({ port: 8000 }, (req) => {
+  return new Response("Hello, World!", {
+    headers: { "content-type": "text/plain" },
+  });
+});
+
+// With request handling
+Deno.serve({ port: 8000 }, async (req) => {
+  const url = new URL(req.url);
+  
+  if (url.pathname === "/api/data") {
+    const data = { message: "Hello from Deno!" };
+    return Response.json(data);
+  }
+  
+  if (url.pathname === "/file") {
+    const file = await Deno.open("./data.txt", { read: true });
+    return new Response(file.readable);
+  }
+  
+  return new Response("Not Found", { status: 404 });
+});
+```
+
+## Unstable APIs
+
+Some APIs are marked as unstable and require the `--unstable` flag or specific feature flags.
+
+### Deno KV (Key-Value Database)
+
+```typescript Deno KV
+// Open a KV database
+const kv = await Deno.openKv();
+
+// Set a value
+await kv.set(["users", "alice"], { name: "Alice", age: 30 });
+
+// Get a value
+const entry = await kv.get(["users", "alice"]);
+console.log(entry.value); // { name: "Alice", age: 30 }
+
+// List entries
+const entries = kv.list({ prefix: ["users"] });
+for await (const entry of entries) {
+  console.log(entry.key, entry.value);
+}
+
+// Atomic operations
+const result = await kv.atomic()
+  .check({ key: ["users", "alice"], versionstamp: entry.versionstamp })
+  .set(["users", "alice"], { name: "Alice", age: 31 })
+  .commit();
+
+kv.close();
+```
+
+### Cron Jobs
+
+```typescript Deno Cron
+// Schedule a cron job
+Deno.cron("cleanup-task", "0 0 * * *", async () => {
+  console.log("Running cleanup task...");
+  // Cleanup logic here
+});
+
+// With backoff schedule
+Deno.cron("retry-task", "*/5 * * * *", {
+  backoffSchedule: [1000, 5000, 10000],
+}, async () => {
+  // Task with automatic retries
+});
+```
+
+## Version Information
+
+```typescript Version Info
+// Deno version
+console.log(Deno.version.deno); // "1.40.0"
+console.log(Deno.version.v8); // "12.1.285.6"
+console.log(Deno.version.typescript); // "5.3.3"
+```
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Web Platform APIs" href="/api/web-platform-apis">
+    Learn about standard web APIs available in Deno
+  </Card>
+  <Card title="Permissions" href="/essentials/permissions">
+    Deep dive into Deno's security model
+  </Card>
+</CardGroup>

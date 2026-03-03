@@ -1,0 +1,392 @@
+---
+title: "JSR Integration"
+description: "Understanding how Deno Standard Library integrates with the JavaScript Registry"
+---
+
+## What is JSR?
+
+[JSR (JavaScript Registry)](https://jsr.io/) is the open-source package registry for modern JavaScript and TypeScript. It's designed from the ground up to work seamlessly with modern JavaScript runtimes and provides native TypeScript support, better documentation, and improved security.
+
+<Info>
+  JSR is the recommended package registry for Deno projects and is where the official Deno Standard Library is published.
+</Info>
+
+## Why JSR for the Standard Library?
+
+The Deno Standard Library is published on JSR rather than npm for several key reasons:
+
+<CardGroup cols={2}>
+
+<Card title="Native TypeScript" icon="code">
+  JSR packages are TypeScript-first, requiring no separate type definition files or compilation steps.
+</Card>
+
+<Card title="Better Documentation" icon="book-open">
+  Automatic generation of comprehensive API documentation from TypeScript types and JSDoc comments.
+</Card>
+
+<Card title="Cross-Runtime Support" icon="arrows-rotate">
+  Packages work across Deno, Node.js, Bun, and browsers with automatic compatibility handling.
+</Card>
+
+<Card title="Improved Security" icon="shield">
+  Package provenance, signed packages, and transparency logs ensure package integrity.
+</Card>
+
+</CardGroup>
+
+## How JSR Works with Deno
+
+Deno has built-in support for JSR packages. When you import from the `@std` namespace, Deno automatically resolves and caches the package from JSR.
+
+### Import Resolution
+
+```typescript
+// Deno automatically resolves this from JSR
+import { assertEquals } from "@std/assert";
+
+// Equivalent to:
+import { assertEquals } from "jsr:@std/assert";
+```
+
+The `jsr:` prefix is optional for packages in the `@std` namespace, but you can use it explicitly if preferred.
+
+### Caching Behavior
+
+When you import a JSR package:
+
+1. Deno checks the local cache for the package
+2. If not cached, Deno downloads it from JSR
+3. The package is cached globally for reuse
+4. Subsequent imports use the cached version
+
+```bash
+# Clear the cache to force re-download
+deno cache --reload main.ts
+
+# View cache location
+deno info
+```
+
+## Package Versioning on JSR
+
+JSR packages follow semantic versioning (semver) and support flexible version constraints:
+
+### Version Specifiers
+
+```typescript
+// Exact version
+import { assertEquals } from "@std/assert@1.0.0";
+
+// Compatible with version (^)
+// Accepts 1.x.x but not 2.0.0
+import { assertEquals } from "@std/assert@^1.0.0";
+
+// Approximately equivalent (~)
+// Accepts 1.0.x but not 1.1.0
+import { assertEquals } from "@std/assert@~1.0.0";
+
+// Latest version (not recommended for production)
+import { assertEquals } from "@std/assert";
+```
+
+<Warning>
+  Always use explicit version constraints in production to prevent unexpected breaking changes.
+</Warning>
+
+### Updating Dependencies
+
+You can check for and update to newer versions:
+
+```bash
+# Check for outdated dependencies
+deno outdated
+
+# Update a specific dependency
+deno add @std/assert@latest
+
+# Update all dependencies in deno.json
+deno outdated --update
+```
+
+## Working with deno.json
+
+For better dependency management, define JSR imports in your `deno.json` configuration file:
+
+### Basic Configuration
+
+```json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "@std/path": "jsr:@std/path@^1.0.0",
+    "@std/fs": "jsr:@std/fs@^1.0.0",
+    "@std/http": "jsr:@std/http@^1.0.0"
+  }
+}
+```
+
+### Import Aliases
+
+You can create custom aliases for standard library modules:
+
+```json
+{
+  "imports": {
+    "assert": "jsr:@std/assert@^1.0.0",
+    "testing": "jsr:@std/testing@^1.0.0"
+  }
+}
+```
+
+Then use the aliases in your code:
+
+```typescript
+import { assertEquals } from "assert";
+import { mock } from "testing";
+```
+
+### Scoped Imports
+
+Organize imports with path prefixes:
+
+```json
+{
+  "imports": {
+    "@/": "./src/",
+    "@std/": "jsr:@std/",
+    "@testing/": "jsr:@std/testing/"
+  }
+}
+```
+
+## Package Documentation on JSR
+
+Every standard library package has comprehensive documentation on JSR:
+
+### Accessing Documentation
+
+1. Visit [jsr.io/@std](https://jsr.io/@std)
+2. Select a package (e.g., `@std/path`)
+3. View:
+   - README and overview
+   - Complete API reference
+   - Usage examples
+   - Version history
+   - Source code links
+
+### Documentation Features
+
+<AccordionGroup>
+  <Accordion title="Auto-generated API Docs">
+    JSR automatically generates API documentation from TypeScript definitions and JSDoc comments.
+    
+    ```typescript
+    /**
+     * Join all given path segments together using the platform-specific
+     * separator as a delimiter, then normalize the resulting path.
+     * 
+     * @param paths - The path segments to join
+     * @returns The joined path
+     * 
+     * @example
+     * ```ts
+     * import { join } from "@std/path";
+     * 
+     * join("foo", "bar"); // "foo/bar"
+     * ```
+     */
+    export function join(...paths: string[]): string;
+    ```
+  </Accordion>
+  
+  <Accordion title="Type Information">
+    Full TypeScript type definitions are displayed inline with documentation, showing function signatures, parameters, and return types.
+  </Accordion>
+  
+  <Accordion title="Examples and Usage">
+    Each function includes practical examples showing common use cases and expected outputs.
+  </Accordion>
+  
+  <Accordion title="Symbol Search">
+    Search for specific functions, types, or constants across all standard library modules.
+  </Accordion>
+</AccordionGroup>
+
+## Publishing to JSR
+
+While the standard library is maintained by the Deno team, you can publish your own packages to JSR:
+
+### Creating a Package
+
+```bash
+# Initialize a new package
+deno init my-package
+
+# Add package metadata to deno.json
+```
+
+### Package Configuration
+
+```json
+{
+  "name": "@username/my-package",
+  "version": "1.0.0",
+  "exports": "./mod.ts",
+  "description": "My awesome package",
+  "license": "MIT"
+}
+```
+
+### Publishing
+
+```bash
+# Publish to JSR
+deno publish
+```
+
+<Tip>
+  Learn more about publishing packages at [jsr.io/docs/publishing-packages](https://jsr.io/docs/publishing-packages).
+</Tip>
+
+## JSR vs npm
+
+While Deno supports both JSR and npm packages, there are key differences:
+
+| Feature | JSR | npm |
+|---------|-----|-----|
+| TypeScript Support | Native | Requires @types packages |
+| Documentation | Auto-generated from types | Separate docs site needed |
+| Runtime Support | Deno, Node, Bun, browsers | Primarily Node.js |
+| Import Syntax | ESM only | CommonJS and ESM |
+| Package Signing | Built-in | Optional |
+| Version Resolution | Semantic versioning | Semantic versioning |
+
+### When to Use Each
+
+<CardGroup cols={2}>
+
+<Card title="Use JSR" icon="check">
+  - New Deno projects
+  - TypeScript-first packages
+  - Modern JavaScript features
+  - Cross-runtime compatibility
+</Card>
+
+<Card title="Use npm" icon="npm">
+  - Existing Node.js ecosystem
+  - Established packages
+  - Legacy compatibility
+  - Specific npm-only packages
+</Card>
+
+</CardGroup>
+
+## Interoperability
+
+JSR packages can work alongside npm packages in the same project:
+
+```typescript
+// Import from JSR
+import { assertEquals } from "@std/assert";
+
+// Import from npm
+import express from "npm:express@4";
+
+// Use both together
+const app = express();
+
+Deno.test("server responds", async () => {
+  const response = await fetch("http://localhost:3000");
+  assertEquals(response.status, 200);
+});
+```
+
+<Info>
+  Deno's built-in npm compatibility allows you to use JSR for modern packages while still accessing the npm ecosystem when needed.
+</Info>
+
+## Performance Considerations
+
+### Faster Downloads
+
+JSR is optimized for fast package downloads:
+
+- CDN distribution worldwide
+- Efficient compression
+- Smart caching strategies
+- Parallel downloads for dependencies
+
+### Module Resolution
+
+JSR packages use ESM imports, which are:
+
+- Faster to parse than CommonJS
+- Better for tree-shaking
+- More compatible with modern bundlers
+- Natively supported in browsers
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Lock file usage">
+    Use `deno.lock` to ensure consistent dependency versions across environments:
+    
+    ```bash
+    # Generate or update lock file
+    deno cache --lock=deno.lock --lock-write main.ts
+    
+    # Verify dependencies match lock file
+    deno cache --lock=deno.lock main.ts
+    ```
+  </Accordion>
+  
+  <Accordion title="Centralize imports">
+    Create a `deps.ts` file to centralize external dependencies:
+    
+    ```typescript
+    // deps.ts
+    export { assertEquals } from "@std/assert@^1.0.0";
+    export { join } from "@std/path@^1.0.0";
+    export { exists } from "@std/fs@^1.0.0";
+    ```
+    
+    Then import from deps.ts:
+    
+    ```typescript
+    import { assertEquals, join, exists } from "./deps.ts";
+    ```
+  </Accordion>
+  
+  <Accordion title="Regular updates">
+    Keep dependencies up to date to receive bug fixes and security patches:
+    
+    ```bash
+    # Weekly or monthly
+    deno outdated
+    deno outdated --update
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Additional Resources
+
+<CardGroup cols={2}>
+
+<Card title="JSR Documentation" icon="book" href="https://jsr.io/docs">
+  Complete guide to using and publishing on JSR
+</Card>
+
+<Card title="Standard Library" icon="box" href="https://jsr.io/@std">
+  Browse all Deno standard library modules
+</Card>
+
+<Card title="Package Management" icon="package" href="/guides/package-management">
+  Learn more about managing dependencies in Deno
+</Card>
+
+<Card title="Configuration" icon="gear" href="/guides/configuration">
+  Configure deno.json for your project
+</Card>
+
+</CardGroup>

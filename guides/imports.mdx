@@ -1,0 +1,308 @@
+---
+title: Import Maps and Module Resolution
+description: Learn how to use import maps to manage module resolution in Deno, including bare specifiers, scoped imports, and integration with deno.json.
+---
+
+Deno supports import maps to control how module specifiers are resolved. Import maps allow you to use bare specifiers (like `"react"` instead of full URLs) and remap module locations.
+
+## Import Maps in deno.json
+
+The recommended way to define import maps is directly in your `deno.json` file using the `imports` field:
+
+```json deno.json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "@std/async": "jsr:@std/async@^1.0.0",
+    "react": "npm:react@^18.2.0",
+    "react-dom": "npm:react-dom@^18.2.0"
+  }
+}
+```
+
+Now you can use bare specifiers in your code:
+
+```typescript
+import { assertEquals } from "@std/assert";
+import { delay } from "@std/async";
+import React from "react";
+import ReactDOM from "react-dom";
+```
+
+## Standalone Import Map Files
+
+You can also use a separate import map file and reference it in your configuration:
+
+```json deno.json
+{
+  "importMap": "./import_map.json"
+}
+```
+
+```json import_map.json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "utils/": "./src/utils/"
+  }
+}
+```
+
+<Note>
+If you specify both an `importMap` field and `imports`/`scopes` in `deno.json`, the inline `imports`/`scopes` will take precedence and override the external import map.
+</Note>
+
+## Path Mapping
+
+Import maps can remap paths to make imports cleaner:
+
+```json deno.json
+{
+  "imports": {
+    "@/": "./src/",
+    "@components/": "./src/components/",
+    "@utils/": "./src/utils/"
+  }
+}
+```
+
+```typescript
+// Instead of:
+import { Button } from "../../components/Button.ts";
+import { formatDate } from "../../../utils/date.ts";
+
+// You can write:
+import { Button } from "@components/Button.ts";
+import { formatDate } from "@utils/date.ts";
+```
+
+<Warning>
+Path mappings must end with a `/` to indicate they're directory mappings.
+</Warning>
+
+## Scoped Imports
+
+The `scopes` field allows you to define import mappings that only apply within specific scopes:
+
+```json deno.json
+{
+  "imports": {
+    "lodash": "npm:lodash@^4.17.21"
+  },
+  "scopes": {
+    "./vendor/": {
+      "lodash": "npm:lodash-es@^4.17.21"
+    }
+  }
+}
+```
+
+In this example:
+- Most code will resolve `"lodash"` to the CommonJS version from npm
+- Code in the `./vendor/` directory will resolve `"lodash"` to the ES modules version
+
+## Common Import Patterns
+
+### JSR Packages
+
+```json deno.json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "@std/async": "jsr:@std/async@^1.0.0",
+    "@std/path": "jsr:@std/path@^1.0.0"
+  }
+}
+```
+
+### npm Packages
+
+```json deno.json
+{
+  "imports": {
+    "express": "npm:express@^4.18.2",
+    "chalk": "npm:chalk@^5.3.0",
+    "zod": "npm:zod@^3.22.0"
+  }
+}
+```
+
+### Local Modules
+
+```json deno.json
+{
+  "imports": {
+    "@/": "./src/",
+    "@models/": "./src/models/",
+    "@api/": "./src/api/",
+    "config": "./config.ts"
+  }
+}
+```
+
+### Mixed Sources
+
+```json deno.json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "react": "npm:react@^18.2.0",
+    "@/": "./src/",
+    "https://deno.land/x/oak@v12.6.1/mod.ts": "./vendored/oak/mod.ts"
+  }
+}
+```
+
+## Subpath Imports
+
+You can map specific subpaths of packages:
+
+```json deno.json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "@std/assert/equal": "jsr:@std/assert@^1.0.0/equal"
+  }
+}
+```
+
+## Version Management
+
+Import maps make it easy to manage versions centrally:
+
+```json deno.json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1.0.8",
+    "@std/async": "jsr:@std/async@1.0.9",
+    "@std/path": "jsr:@std/path@1.0.7"
+  }
+}
+```
+
+Update all versions in one place instead of throughout your codebase.
+
+## Compiler Options Integration
+
+Import maps work alongside TypeScript's `paths` compiler option, but serve different purposes:
+
+```json deno.json
+{
+  "imports": {
+    "@/": "./src/"
+  },
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+```
+
+<Note>
+In Deno, `compilerOptions.paths` is only applied to bare specifier entries and is primarily for TypeScript compatibility. Use `imports` for runtime module resolution.
+</Note>
+
+## Vendoring Dependencies
+
+You can use import maps to vendor external dependencies:
+
+<Steps>
+  <Step title="Cache dependencies">
+    ```bash
+    deno cache --vendor main.ts
+    ```
+  </Step>
+  
+  <Step title="Update import map">
+    ```json deno.json
+    {
+      "imports": {
+        "jsr:@std/assert@^1.0.0": "./vendor/jsr.io/@std/assert/1.0.8/mod.ts"
+      },
+      "vendor": true
+    }
+    ```
+  </Step>
+</Steps>
+
+## Dynamic Imports
+
+Import maps also work with dynamic imports:
+
+```typescript
+const module = await import("@std/assert");
+```
+
+This will resolve according to your import map configuration.
+
+## Command Line Override
+
+You can specify an import map from the command line:
+
+```bash
+deno run --import-map=import_map.json main.ts
+```
+
+This overrides any `importMap` specified in `deno.json`.
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use JSR and npm prefixes" icon="package">
+    Always use `jsr:` and `npm:` prefixes to make it clear where packages come from.
+  </Card>
+  
+  <Card title="Version pinning" icon="lock">
+    Use exact versions in production, ranges in development.
+  </Card>
+  
+  <Card title="Path mappings" icon="folder">
+    Create consistent path aliases to avoid deep relative imports.
+  </Card>
+  
+  <Card title="Centralized management" icon="gear">
+    Keep all imports in `deno.json` for easier maintenance.
+  </Card>
+</CardGroup>
+
+## Real-World Example
+
+Here's a complete example from the Deno source code:
+
+```json deno.json
+{
+  "imports": {
+    "@std/assert": "./tests/util/std/assert/mod.ts",
+    "@std/assert/equal": "./tests/util/std/assert/equal.ts",
+    "@std/assert/equals": "./tests/util/std/assert/equals.ts",
+    "@std/async": "./tests/util/std/async/mod.ts",
+    "@std/async/delay": "./tests/util/std/async/delay.ts",
+    "@std/bytes": "./tests/util/std/bytes/mod.ts",
+    "@std/path": "./tests/util/std/path/mod.ts"
+  },
+  "scopes": {
+    "./tests/": {
+      "@std/assert": "jsr:@std/assert@^1.0.0"
+    }
+  }
+}
+```
+
+## Troubleshooting
+
+### Import map not being used
+
+Make sure your `deno.json` is in the project root, or specify it explicitly:
+
+```bash
+deno run --config=./path/to/deno.json main.ts
+```
+
+### Conflicts between imports and scopes
+
+Scoped imports take precedence over top-level imports for files within that scope.
+
+### TypeScript errors
+
+If TypeScript can't resolve imports, ensure you have both `imports` and appropriate `compilerOptions.paths` set up.

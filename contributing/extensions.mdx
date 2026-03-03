@@ -1,0 +1,621 @@
+---
+title: Working with Extensions
+description: How to create and modify Deno extensions
+---
+
+Extensions are the building blocks of Deno's runtime. They provide native functionality to JavaScript by exposing Rust operations (ops) and bundling JavaScript code.
+
+## What are Extensions?
+
+Extensions bundle together:
+- **Ops** - Rust functions callable from JavaScript
+- **JavaScript/TypeScript code** - High-level APIs
+- **Dependencies** - Other extensions required
+- **State** - Extension-specific initialization
+
+**Location:** All extensions live in the `ext/` directory.
+
+```bash
+ext/
+├── fs/                # File system operations
+├── net/               # Networking
+├── fetch/             # Fetch API
+├── web/               # Web APIs
+├── crypto/            # Cryptography
+└── ...
+```
+
+## Extension Structure
+
+A typical extension contains:
+
+```bash
+ext/my_extension/
+├── Cargo.toml         # Crate dependencies
+├── lib.rs             # Extension definition
+├── ops.rs             # Op implementations (optional)
+├── 01_my_api.js       # JavaScript code
+└── README.md          # Documentation
+```
+
+## Creating a New Extension
+
+### Step 1: Create the Directory
+
+```bash
+mkdir ext/my_extension
+cd ext/my_extension
+```
+
+### Step 2: Create Cargo.toml
+
+```toml
+[package]
+name = "deno_my_extension"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+deno_core.workspace = true
+serde = { workspace = true, features = ["derive"] }
+
+# Add other dependencies as needed
+```
+
+### Step 3: Define the Extension
+
+Create `lib.rs`:
+
+<CodeGroup>
+```rust Basic Extension
+// ext/my_extension/lib.rs
+use deno_core::extension;
+
+// Define ops
+#[op2(fast)]
+fn op_my_add(a: i32, b: i32) -> i32 {
+  a + b
+}
+
+#[op2]
+#[string]
+fn op_my_greet(#[string] name: String) -> String {
+  format!("Hello, {}!", name)
+}
+
+// Register extension
+extension!(
+  deno_my_extension,
+  ops = [
+    op_my_add,
+    op_my_greet,
+  ],
+  esm = [
+    "01_my_extension.js",
+  ],
+);
+```
+
+```rust With Dependencies
+extension!(
+  deno_my_extension,
+  deps = [
+    deno_web,  // Depend on web extension
+    deno_url,  // Depend on url extension
+  ],
+  ops = [
+    op_my_add,
+    op_my_greet,
+  ],
+  esm = [
+    "01_my_extension.js",
+  ],
+);
+```
+
+```rust With State
+extension!(
+  deno_my_extension,
+  ops = [ /* ops */ ],
+  esm = [ "01_my_extension.js" ],
+  state = |state| {
+    // Initialize extension state
+    state.put(MyExtensionState::new());
+  },
+);
+```
+</CodeGroup>
+
+### Step 4: Create JavaScript API
+
+Create `01_my_extension.js`:
+
+```javascript
+const core = globalThis.Deno.core;
+const ops = core.ops;
+
+function add(a, b) {
+  return ops.op_my_add(a, b);
+}
+
+function greet(name) {
+  return ops.op_my_greet(name);
+}
+
+// Export to globalThis.Deno namespace
+globalThis.Deno = globalThis.Deno || {};
+globalThis.Deno.MyExtension = {
+  add,
+  greet,
+};
+```
+
+### Step 5: Register in Runtime
+
+Add to `runtime/worker.rs`:
+
+```rust
+let extensions = vec![
+  deno_web::deno_web::init_ops_and_esm::<Permissions>(...),
+  deno_fetch::deno_fetch::init_ops_and_esm::<Permissions>(...),
+  deno_my_extension::deno_my_extension::init_ops_and_esm(),  // Add this
+  // ...
+];
+```
+
+Add to workspace `Cargo.toml`:
+
+```toml
+[workspace]
+members = [
+  "ext/my_extension",
+  # ...
+]
+
+[workspace.dependencies]
+deno_my_extension = { version = "0.1.0", path = "./ext/my_extension" }
+```
+
+### Step 6: Add to CLI Dependencies
+
+In `cli/Cargo.toml`:
+
+```toml
+[dependencies]
+deno_my_extension.workspace = true
+```
+
+## Writing Ops
+
+Ops are the interface between Rust and JavaScript.
+
+### Op Types
+
+<Tabs>
+  <Tab title="Synchronous">
+    ```rust
+    #[op2(fast)]
+    fn op_add(a: i32, b: i32) -> i32 {
+      a + b
+    }
+    ```
+    Fast synchronous operations with no async overhead.
+  </Tab>
+  
+  <Tab title="Asynchronous">
+    ```rust
+    #[op2(async)]
+    async fn op_read_file(
+      #[string] path: String,
+    ) -> Result<Vec<u8>, std::io::Error> {
+      tokio::fs::read(path).await
+    }
+    ```
+    Returns a future that can be awaited in JavaScript.
+  </Tab>
+  
+  <Tab title="With State">
+    ```rust
+    #[op2]
+    fn op_increment_counter(state: &mut OpState) -> u32 {
+      let counter = state.borrow_mut::<Counter>();
+      counter.increment()
+    }
+    ```
+    Access extension or runtime state.
+  </Tab>
+  
+  <Tab title="With Permissions">
+    ```rust
+    #[op2]
+    fn op_read_file(
+      state: &mut OpState,
+      #[string] path: String,
+    ) -> Result<Vec<u8>, AnyError> {
+      let permissions = state.borrow_mut::<PermissionsContainer>();
+      permissions.check_read(&path)?;
+      
+      std::fs::read(&path).map_err(Into::into)
+    }
+    ```
+    Check permissions before performing operations.
+  </Tab>
+</Tabs>
+
+### Op Parameters
+
+Common parameter types:
+
+```rust
+// Strings
+fn op_example(#[string] s: String) -> String { s }
+
+// Buffers
+fn op_example(#[buffer] buf: &[u8]) -> usize { buf.len() }
+
+// Serde (JSON-like)
+fn op_example(#[serde] obj: MyStruct) -> MyStruct { obj }
+
+// Small integers (optimized)
+fn op_example(#[smi] n: i32) -> i32 { n }
+
+// BigInt
+fn op_example(#[bigint] n: i64) -> i64 { n }
+
+// State
+fn op_example(state: &mut OpState) -> u32 { 42 }
+```
+
+### Op Return Types
+
+```rust
+// Direct return
+#[op2(fast)]
+fn op_add(a: i32, b: i32) -> i32 { a + b }
+
+// String return
+#[op2]
+#[string]
+fn op_greet() -> String { "Hello".to_string() }
+
+// Buffer return
+#[op2]
+#[buffer]
+fn op_bytes() -> Vec<u8> { vec![1, 2, 3] }
+
+// Serde return
+#[op2]
+#[serde]
+fn op_data() -> MyStruct { MyStruct { /* ... */ } }
+
+// Result return
+#[op2]
+fn op_fallible() -> Result<i32, AnyError> {
+  Ok(42)
+}
+```
+
+## Resources
+
+Resources represent system handles like files and sockets.
+
+### Defining a Resource
+
+```rust
+use deno_core::Resource;
+use std::rc::Rc;
+
+struct MyResource {
+  data: AsyncRefCell<Vec<u8>>,
+}
+
+impl Resource for MyResource {
+  fn name(&self) -> Cow<str> {
+    "myResource".into()
+  }
+  
+  fn close(self: Rc<Self>) {
+    // Cleanup logic
+  }
+}
+```
+
+### Creating Resources
+
+```rust
+#[op2]
+fn op_create_resource(
+  state: &mut OpState,
+) -> u32 {  // Returns resource ID (rid)
+  let resource = MyResource {
+    data: AsyncRefCell::new(vec![]),
+  };
+  
+  state.resource_table.add(resource)
+}
+```
+
+### Using Resources
+
+```rust
+#[op2(async)]
+async fn op_read_resource(
+  state: Rc<RefCell<OpState>>,
+  #[smi] rid: u32,
+) -> Result<Vec<u8>, AnyError> {
+  let resource = state.borrow()
+    .resource_table
+    .get::<MyResource>(rid)?;
+  
+  let data = resource.data.borrow().await;
+  Ok(data.clone())
+}
+```
+
+### Closing Resources
+
+```rust
+#[op2]
+fn op_close_resource(
+  state: &mut OpState,
+  #[smi] rid: u32,
+) -> Result<(), AnyError> {
+  state.resource_table.close(rid)?;
+  Ok(())
+}
+```
+
+## Example: File System Extension
+
+Let's look at a simplified version of the fs extension:
+
+<CodeGroup>
+```rust ext/fs/lib.rs
+use deno_core::extension;
+use std::path::Path;
+
+#[op2]
+#[string]
+fn op_fs_cwd() -> Result<String, std::io::Error> {
+  std::env::current_dir()
+    .map(|p| p.to_string_lossy().to_string())
+}
+
+#[op2(async)]
+async fn op_fs_read_file(
+  state: Rc<RefCell<OpState>>,
+  #[string] path: String,
+) -> Result<Vec<u8>, std::io::Error> {
+  // Check permissions
+  {
+    let mut state = state.borrow_mut();
+    let permissions = state.borrow_mut::<PermissionsContainer>();
+    permissions.check_read(Path::new(&path))?;
+  }
+  
+  // Read file
+  tokio::fs::read(path).await
+}
+
+extension!(
+  deno_fs,
+  deps = [ deno_web ],
+  ops = [
+    op_fs_cwd,
+    op_fs_read_file,
+  ],
+  esm = [ "30_fs.js" ],
+);
+```
+
+```javascript ext/fs/30_fs.js
+const core = globalThis.Deno.core;
+const ops = core.ops;
+
+function cwd() {
+  return ops.op_fs_cwd();
+}
+
+async function readFile(path) {
+  const data = await ops.op_fs_read_file(path);
+  return new Uint8Array(data);
+}
+
+globalThis.Deno = globalThis.Deno || {};
+globalThis.Deno.cwd = cwd;
+globalThis.Deno.readFile = readFile;
+```
+</CodeGroup>
+
+## Existing Extensions Reference
+
+<CardGroup cols={2}>
+  <Card title="ext/fs" icon="folder">
+    File system operations: read, write, stat, etc.
+  </Card>
+  <Card title="ext/net" icon="network-wired">
+    Networking: TCP, UDP, TLS connections
+  </Card>
+  <Card title="ext/fetch" icon="download">
+    Fetch API implementation
+  </Card>
+  <Card title="ext/web" icon="globe">
+    Web APIs: TextEncoder, URL, Events, etc.
+  </Card>
+  <Card title="ext/crypto" icon="lock">
+    Web Crypto API
+  </Card>
+  <Card title="ext/http" icon="server">
+    HTTP server implementation
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Always check permissions">
+    Never perform privileged operations without checking permissions first.
+    
+    ```rust
+    let permissions = state.borrow_mut::<PermissionsContainer>();
+    permissions.check_read(&path)?;
+    ```
+  </Step>
+  
+  <Step title="Use appropriate op types">
+    - Use `#[op2(fast)]` for hot paths with simple types
+    - Use `#[op2(async)]` for I/O operations
+    - Use regular `#[op2]` for everything else
+  </Step>
+  
+  <Step title="Handle errors properly">
+    Return `Result<T, AnyError>` and use `?` operator:
+    
+    ```rust
+    fn op_example(path: String) -> Result<Vec<u8>, AnyError> {
+      let data = std::fs::read(path)?;
+      Ok(data)
+    }
+    ```
+  </Step>
+  
+  <Step title="Document your APIs">
+    Add JSDoc comments to JavaScript wrappers:
+    
+    ```javascript
+    /**
+     * Reads a file from the file system.
+     * @param {string} path - Path to the file
+     * @returns {Promise<Uint8Array>} File contents
+     */
+    async function readFile(path) {
+      return await ops.op_fs_read_file(path);
+    }
+    ```
+  </Step>
+  
+  <Step title="Test thoroughly">
+    Add tests in `tests/unit/` and spec tests in `tests/specs/`.
+  </Step>
+</Steps>
+
+## Testing Extensions
+
+### Unit Tests
+
+Add Rust unit tests:
+
+```rust
+#[cfg(test)]
+mod tests {
+  use super::*;
+  
+  #[test]
+  fn test_op_add() {
+    assert_eq!(op_my_add(2, 3), 5);
+  }
+}
+```
+
+### Integration Tests
+
+Create spec tests in `tests/specs/my_extension/`:
+
+```jsonc
+// tests/specs/my_extension/__test__.jsonc
+{
+  "tests": {
+    "basic_usage": {
+      "args": "run main.ts",
+      "output": "main.out"
+    }
+  }
+}
+```
+
+```typescript
+// tests/specs/my_extension/main.ts
+const result = Deno.MyExtension.add(2, 3);
+console.log(result);  // 5
+```
+
+## Common Patterns
+
+<AccordionGroup>
+  <Accordion title="Async operations with cancellation">
+    ```rust
+    #[op2(async)]
+    async fn op_sleep(
+      state: Rc<RefCell<OpState>>,
+      millis: u64,
+    ) -> Result<(), AnyError> {
+      let cancel = state.borrow().borrow::<CancelHandle>().clone();
+      
+      tokio::select! {
+        _ = tokio::time::sleep(Duration::from_millis(millis)) => Ok(()),
+        _ = cancel.cancelled() => Err(anyhow!("Cancelled")),
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Batching operations">
+    ```rust
+    #[op2]
+    #[serde]
+    fn op_batch_process(
+      #[serde] items: Vec<String>,
+    ) -> Result<Vec<String>, AnyError> {
+      items.iter()
+        .map(|item| process_item(item))
+        .collect()
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Custom error types">
+    ```rust
+    #[derive(Debug, thiserror::Error)]
+    pub enum MyError {
+      #[error("{0}")]
+      Custom(String),
+      #[error("IO error: {0}")]
+      Io(#[from] std::io::Error),
+    }
+    
+    #[op2]
+    fn op_fallible() -> Result<(), MyError> {
+      Err(MyError::Custom("Something went wrong".into()))
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Debugging Extensions
+
+See [Debugging](/contributing/debugging) for detailed debugging techniques.
+
+Quick tips:
+
+```rust
+// Use eprintln! for debug output
+eprintln!("Debug: {:?}", value);
+
+// Use dbg! macro
+dbg!(some_variable);
+
+// Enable logging
+log::debug!("Operation completed: {:?}", result);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing" icon="flask" href="/contributing/testing">
+    Learn how to test your extensions
+  </Card>
+  <Card title="Debugging" icon="bug" href="/contributing/debugging">
+    Debug extension issues
+  </Card>
+</CardGroup>

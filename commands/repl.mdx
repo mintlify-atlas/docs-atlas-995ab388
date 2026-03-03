@@ -1,0 +1,246 @@
+---
+title: deno repl
+description: Start an interactive Read-Eval-Print Loop (REPL)
+---
+
+The `deno repl` command starts an interactive Read-Eval-Print Loop for evaluating JavaScript and TypeScript code.
+
+## Usage
+
+```bash
+deno repl [OPTIONS]
+deno  # Starts REPL as default command
+```
+
+## Description
+
+The REPL provides an interactive environment to experiment with Deno, evaluate expressions, and test code snippets. It supports TypeScript, top-level await, and has built-in tab completion.
+
+## Flags
+
+<ParamField path="--eval-file" type="string">
+  Evaluate a file before entering the REPL. Can be specified multiple times
+</ParamField>
+
+<ParamField path="--eval" type="string">
+  Evaluate code before entering the REPL
+</ParamField>
+
+<ParamField path="--import-map" type="string">
+  Load import map file
+</ParamField>
+
+<ParamField path="--no-npm" type="boolean">
+  Do not resolve npm modules
+</ParamField>
+
+<ParamField path="--node-modules-dir" type="boolean">
+  Enables or disables the use of a local node_modules folder
+</ParamField>
+
+<ParamField path="--config" type="string">
+  Specify the configuration file
+</ParamField>
+
+<ParamField path="--no-config" type="boolean">
+  Disable automatic loading of the configuration file
+</ParamField>
+
+### Permission Flags
+
+By default, when running just `deno` (REPL as default command), all permissions are allowed. When explicitly running `deno repl`, you need to specify permissions:
+
+<ParamField path="--allow-read" type="string">
+  Allow file system read access
+</ParamField>
+
+<ParamField path="--allow-write" type="string">
+  Allow file system write access
+</ParamField>
+
+<ParamField path="--allow-net" type="string">
+  Allow network access
+</ParamField>
+
+<ParamField path="--allow-env" type="string">
+  Allow environment access
+</ParamField>
+
+<ParamField path="--allow-run" type="string">
+  Allow running subprocesses
+</ParamField>
+
+<ParamField path="--allow-all" type="boolean">
+  Allow all permissions
+</ParamField>
+
+## Features
+
+### TypeScript Support
+
+The REPL natively supports TypeScript:
+
+```typescript
+> const greeting: string = "Hello, Deno!";
+> console.log(greeting);
+Hello, Deno!
+```
+
+### Top-level Await
+
+Use `await` at the top level:
+
+```javascript
+> const response = await fetch("https://api.github.com/users/denoland");
+> const data = await response.json();
+> data.name
+"Deno"
+```
+
+### Tab Completion
+
+Press Tab to autocomplete:
+
+```javascript
+> console.l<Tab>
+log    
+info   
+warn   
+error  
+```
+
+### Special Variables
+
+- `_` - Result of the last evaluated expression
+- `_error` - Last thrown error
+
+```javascript
+> 2 + 2
+4
+> _ * 2
+8
+```
+
+### Multiline Input
+
+Press Shift+Enter for multiline input:
+
+```javascript
+> function greet(name) {<Shift+Enter>
+    return `Hello, ${name}!`;<Shift+Enter>
+  }<Shift+Enter>
+> greet("World")
+"Hello, World!"
+```
+
+## Examples
+
+### Basic REPL
+
+Start the REPL with all permissions:
+
+```bash
+deno
+```
+
+### REPL with specific permissions
+
+```bash
+deno repl --allow-net --allow-read
+```
+
+### Evaluate code on startup
+
+Run code before entering the REPL:
+
+```bash
+deno repl --eval "const API_URL = 'https://api.example.com'"
+```
+
+### Load a file before REPL
+
+Evaluate a file to set up the environment:
+
+```bash
+deno repl --eval-file setup.ts
+```
+
+### Load multiple files
+
+```bash
+deno repl --eval-file config.ts --eval-file utils.ts
+```
+
+### With import map
+
+```bash
+deno repl --import-map=import_map.json
+```
+
+### With configuration file
+
+```bash
+deno repl --config deno.json
+```
+
+## Keyboard Shortcuts
+
+- `Ctrl+C` - Exit (press twice) or cancel current input
+- `Ctrl+D` - Exit
+- `Tab` - Autocomplete
+- `Shift+Enter` - Multiline input
+- `Up/Down` - Navigate command history
+- `Ctrl+R` - Reverse search history
+
+## REPL History
+
+Command history is saved in:
+- Unix: `~/.cache/deno/repl_history.txt`
+- Windows: `%LOCALAPPDATA%/deno/repl_history.txt`
+- macOS: `~/Library/Caches/deno/repl_history.txt`
+
+## Exit the REPL
+
+You can exit the REPL in several ways:
+
+```javascript
+// Type close() function
+> close()
+
+// Press Ctrl+D
+
+// Press Ctrl+C twice
+```
+
+## Tips
+
+### Import modules
+
+```javascript
+> const { join } = await import("jsr:@std/path");
+> join("foo", "bar")
+"foo/bar"
+```
+
+### Access Deno APIs
+
+```javascript
+> Deno.version
+{ deno: "2.1.0", v8: "12.9.202.5", typescript: "5.6.2" }
+```
+
+### Quick experiments
+
+Test regular expressions:
+
+```javascript
+> /\d+/.test("hello123")
+true
+```
+
+Try out array methods:
+
+```javascript
+> [1, 2, 3, 4, 5].filter(x => x % 2 === 0)
+[2, 4]
+```

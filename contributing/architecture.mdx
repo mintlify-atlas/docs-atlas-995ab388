@@ -1,0 +1,517 @@
+---
+title: Deno Architecture
+description: Overview of Deno's architecture including core components, module system, and how the runtime works
+---
+
+Understanding Deno's architecture will help you navigate the codebase and contribute effectively.
+
+## High-Level Overview
+
+Deno is built on three core technologies:
+
+<CardGroup cols={3}>
+  <Card title="V8" icon="v">
+    Google's JavaScript and WebAssembly engine
+  </Card>
+  
+  <Card title="Rust" icon="rust">
+    Systems programming language for the runtime
+  </Card>
+  
+  <Card title="Tokio" icon="circle-nodes">
+    Asynchronous runtime for Rust
+  </Card>
+</CardGroup>
+
+## Architecture Layers
+
+Deno's architecture is organized into several key layers:
+
+```
+┌─────────────────────────────────────┐
+│         CLI (User Interface)         │  cli/
+│   - Subcommands                      │
+│   - Flag parsing                     │
+│   - Package management               │
+└─────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────┐
+│       Runtime (Integration)          │  runtime/
+│   - JavaScript runtime assembly      │
+│   - Extension registration           │
+│   - Worker initialization            │
+└─────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────┐
+│        Extensions (Native)           │  ext/
+│   - fs, net, http, fetch, etc.       │
+│   - System access for JavaScript     │
+└─────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────┐
+│         Core (Foundation)            │  libs/core/
+│   - V8 integration                   │
+│   - Op system                        │
+│   - Module loader                    │
+└─────────────────────────────────────┘
+```
+
+## Key Directories
+
+### CLI Layer (`cli/`)
+
+The user-facing interface and high-level integration.
+
+<AccordionGroup>
+  <Accordion title="cli/args/flags.rs">
+    **Command-line flag parsing**
+    
+    Defines the structure of all CLI commands and their flags. This is where you add new commands or modify existing command options.
+  </Accordion>
+  
+  <Accordion title="cli/tools/">
+    **CLI tools and subcommands**
+    
+    Each tool (fmt, lint, test, bundle, etc.) has its own module here. Simple tools are single files, complex tools have their own directories.
+    
+    Examples:
+    - `cli/tools/fmt.rs` - Code formatter
+    - `cli/tools/test/` - Test runner (complex)
+    - `cli/tools/repl/` - Interactive REPL
+  </Accordion>
+  
+  <Accordion title="cli/main.rs & cli/lib.rs">
+    **Entry point and command routing**
+    
+    `main.rs` is minimal - it just calls `deno::main()` from `lib.rs`. The `lib.rs` file contains the main logic for routing commands to their handlers.
+  </Accordion>
+  
+  <Accordion title="cli/module_loader.rs">
+    **Module loading and resolution**
+    
+    Handles how Deno loads and resolves modules, including TypeScript compilation, remote modules, and import maps.
+  </Accordion>
+  
+  <Accordion title="cli/lsp/">
+    **Language Server Protocol**
+    
+    Powers the Deno extension for editors like VS Code, providing features like autocomplete, diagnostics, and type checking.
+  </Accordion>
+</AccordionGroup>
+
+### Runtime Layer (`runtime/`)
+
+Assembles the JavaScript runtime and integrates all extensions.
+
+<AccordionGroup>
+  <Accordion title="runtime/worker.rs">
+    **Worker initialization and management**
+    
+    Creates and manages JavaScript execution contexts. This is where extensions are registered and the V8 isolate is configured.
+    
+    Key concepts:
+    - **Main Worker** - The primary JavaScript execution context
+    - **Web Workers** - Background workers for parallel execution
+    - **Extension Registration** - Wiring up native functionality
+  </Accordion>
+  
+  <Accordion title="runtime/permissions.rs">
+    **Permission system**
+    
+    Implements Deno's security model with granular permissions for network, filesystem, environment variables, and more.
+  </Accordion>
+</AccordionGroup>
+
+### Extensions Layer (`ext/`)
+
+Extensions provide native functionality to JavaScript.
+
+<CardGroup cols={2}>
+  <Card title="ext/fs/" icon="folder">
+    Filesystem operations (read, write, stat, etc.)
+  </Card>
+  
+  <Card title="ext/net/" icon="network-wired">
+    TCP and UDP networking
+  </Card>
+  
+  <Card title="ext/http/" icon="globe">
+    HTTP server and client APIs
+  </Card>
+  
+  <Card title="ext/fetch/" icon="download">
+    Fetch API implementation
+  </Card>
+  
+  <Card title="ext/webgpu/" icon="microchip">
+    WebGPU API for GPU access
+  </Card>
+  
+  <Card title="ext/kv/" icon="database">
+    Key-value database
+  </Card>
+  
+  <Card title="ext/node/" icon="node">
+    Node.js compatibility layer
+  </Card>
+  
+  <Card title="ext/web/" icon="window">
+    Web standard APIs (streams, encoding, etc.)
+  </Card>
+</CardGroup>
+
+#### Extension Structure
+
+Each extension typically contains:
+
+- **Rust code** - Implements "ops" (operations) that JavaScript can call
+- **JavaScript code** - Provides high-level APIs that wrap the ops
+- **Tests** - Both unit and integration tests
+
+Example extension structure:
+
+```
+ext/fs/
+  lib.rs          # Rust ops for filesystem access
+  *.js            # JavaScript APIs
+  Cargo.toml      # Rust dependencies
+```
+
+### Core Layer (`libs/core/`)
+
+The foundation that powers everything.
+
+<AccordionGroup>
+  <Accordion title="Op System">
+    **Operations (Ops)** are Rust functions that can be called from JavaScript.
+    
+    The op system provides:
+    - Fast FFI between JavaScript and Rust
+    - Async operation support
+    - Resource management
+    - Type safety
+    
+    Example op definition:
+    
+    ```rust
+    #[op2]
+    #[string]
+    fn op_read_file_sync(#[string] path: String) -> Result<String, AnyError> {
+      std::fs::read_to_string(path)
+        .map_err(|e| e.into())
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="V8 Integration">
+    Manages the V8 JavaScript engine:
+    - Isolate creation and configuration
+    - Snapshot support for fast startup
+    - Garbage collection integration
+    - Inspector protocol support
+  </Accordion>
+  
+  <Accordion title="Module System">
+    Handles module loading and resolution:
+    - ES modules
+    - Dynamic imports
+    - Import maps
+    - Module caching
+  </Accordion>
+</AccordionGroup>
+
+### Test Infrastructure
+
+<CardGroup cols={2}>
+  <Card title="tests/specs/" icon="file-code">
+    **Spec Tests** - Main integration tests that execute CLI commands and validate output
+  </Card>
+  
+  <Card title="tests/unit/" icon="vial">
+    **Unit Tests** - TypeScript/JavaScript unit tests
+  </Card>
+  
+  <Card title="tests/testdata/" icon="folder-tree">
+    **Test Data** - Fixtures and test files used by the test suite
+  </Card>
+  
+  <Card title="tests/wpt/" icon="globe">
+    **Web Platform Tests** - Tests for web standards compliance
+  </Card>
+</CardGroup>
+
+## Key Concepts
+
+### Workers
+
+**Workers** are JavaScript execution contexts in Deno.
+
+<Tabs>
+  <Tab title="Main Worker">
+    The primary JavaScript execution context that runs your program.
+    
+    Created in `runtime/worker.rs`, it:
+    - Loads and executes the main module
+    - Has access to all granted permissions
+    - Can spawn web workers
+  </Tab>
+  
+  <Tab title="Web Workers">
+    Background workers for parallel execution.
+    
+    Features:
+    - Run in isolated contexts
+    - Communicate via message passing
+    - Can have different permissions than main worker
+  </Tab>
+</Tabs>
+
+### Resources
+
+**Resources** are managed objects that are passed between Rust and JavaScript.
+
+Examples:
+- File handles
+- Network sockets
+- Database connections
+- Process handles
+
+Resources are tracked by ID and automatically cleaned up when no longer referenced.
+
+### Permissions
+
+Deno's security model is based on explicit permissions:
+
+<CardGroup cols={2}>
+  <Card title="--allow-read" icon="folder-open">
+    Filesystem read access
+  </Card>
+  
+  <Card title="--allow-write" icon="pen">
+    Filesystem write access
+  </Card>
+  
+  <Card title="--allow-net" icon="wifi">
+    Network access
+  </Card>
+  
+  <Card title="--allow-env" icon="gear">
+    Environment variable access
+  </Card>
+  
+  <Card title="--allow-run" icon="terminal">
+    Subprocess execution
+  </Card>
+  
+  <Card title="--allow-ffi" icon="link">
+    Foreign function interface
+  </Card>
+</CardGroup>
+
+Permissions are checked at the runtime level in `runtime/permissions.rs`.
+
+## Module Resolution
+
+Deno supports several module types and resolution strategies:
+
+### Module Types
+
+<Steps>
+  <Step title="ES Modules">
+    Standard JavaScript modules with `import`/`export`
+  </Step>
+  
+  <Step title="TypeScript">
+    TypeScript files are type-checked and transpiled to JavaScript
+  </Step>
+  
+  <Step title="Remote Modules">
+    HTTP(S) URLs are fetched, cached, and executed
+  </Step>
+  
+  <Step title="NPM Modules">
+    Node.js packages via `npm:` specifiers
+  </Step>
+  
+  <Step title="JSR Modules">
+    JavaScript Registry packages via `jsr:` specifiers
+  </Step>
+</Steps>
+
+### Resolution Flow
+
+```
+Import Specifier
+       ↓
+  Parse & Validate
+       ↓
+  Check Cache
+       ↓
+  Fetch (if remote)
+       ↓
+  Type Check (if TS)
+       ↓
+  Compile/Transform
+       ↓
+  Execute
+```
+
+## Extension System
+
+Extensions are the bridge between JavaScript and native code.
+
+### How Extensions Work
+
+<Steps>
+  <Step title="Define Ops in Rust">
+    Create functions using the `#[op2]` macro:
+    
+    ```rust
+    #[op2(fast)]
+    fn op_add(a: i32, b: i32) -> i32 {
+      a + b
+    }
+    ```
+  </Step>
+  
+  <Step title="Create Extension">
+    Bundle ops into an extension:
+    
+    ```rust
+    deno_core::extension!(
+      my_extension,
+      ops = [op_add],
+    );
+    ```
+  </Step>
+  
+  <Step title="Register in Runtime">
+    Add the extension to the runtime in `runtime/worker.rs`
+  </Step>
+  
+  <Step title="Call from JavaScript">
+    The op is available in JavaScript:
+    
+    ```javascript
+    const result = Deno.core.ops.op_add(1, 2);
+    ```
+  </Step>
+</Steps>
+
+### Extension Lifecycle
+
+1. **Initialization** - Extension is registered with the runtime
+2. **Snapshot** - JavaScript code is included in the V8 snapshot for fast startup
+3. **Runtime** - Ops are callable from JavaScript
+4. **Cleanup** - Resources are freed when the runtime shuts down
+
+## Execution Flow
+
+Here's what happens when you run `deno run script.ts`:
+
+<Steps>
+  <Step title="Parse CLI flags">
+    `cli/args/flags.rs` parses the command and flags
+  </Step>
+  
+  <Step title="Initialize runtime">
+    `runtime/worker.rs` creates a worker with all extensions
+  </Step>
+  
+  <Step title="Load module">
+    `cli/module_loader.rs` resolves and loads the script
+  </Step>
+  
+  <Step title="Type check (if TypeScript)">
+    `cli/tsc/` performs type checking if needed
+  </Step>
+  
+  <Step title="Execute">
+    V8 executes the JavaScript code
+  </Step>
+  
+  <Step title="Op calls">
+    JavaScript calls ops (e.g., `Deno.readFile()`)
+  </Step>
+  
+  <Step title="Rust execution">
+    Ops execute Rust code and return results
+  </Step>
+  
+  <Step title="Event loop">
+    Tokio event loop handles async operations
+  </Step>
+  
+  <Step title="Cleanup">
+    Resources are freed and the runtime shuts down
+  </Step>
+</Steps>
+
+## Communication Patterns
+
+### JavaScript ↔ Rust
+
+<CodeGroup>
+  ```javascript JavaScript
+  // Calling a Rust op from JavaScript
+  const result = await Deno.core.ops.op_read_file("/path/to/file");
+  ```
+
+  ```rust Rust
+  // Rust op implementation
+  #[op2(async)]
+  async fn op_read_file(#[string] path: String) -> Result<String, AnyError> {
+    tokio::fs::read_to_string(path)
+      .await
+      .map_err(|e| e.into())
+  }
+  ```
+</CodeGroup>
+
+### Sync vs Async Ops
+
+- **Sync ops** - Block until complete, used for fast operations
+- **Async ops** - Return a promise, use Tokio for async I/O
+- **Fast ops** - Optimized sync ops with minimal overhead
+
+## Performance Considerations
+
+<CardGroup cols={2}>
+  <Card title="Snapshots" icon="camera">
+    V8 snapshots enable fast startup by pre-compiling core JavaScript
+  </Card>
+  
+  <Card title="Op Optimization" icon="gauge-high">
+    Fast ops minimize crossing the JS/Rust boundary
+  </Card>
+  
+  <Card title="Async I/O" icon="arrows-spin">
+    Tokio provides efficient async operations
+  </Card>
+  
+  <Card title="Resource Pooling" icon="layer-group">
+    Resources are pooled and reused where possible
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Now that you understand the architecture:
+
+<CardGroup cols={2}>
+  <Card title="Development Guide" icon="code" href="/contributing/development-guide">
+    Learn the development workflow and common tasks
+  </Card>
+  
+  <Card title="Building from Source" icon="hammer" href="/contributing/building-from-source">
+    Build Deno on your local machine
+  </Card>
+  
+  <Card title="Start Contributing" icon="hand" href="/contributing/overview">
+    Make your first contribution to Deno
+  </Card>
+  
+  <Card title="Explore the Code" icon="magnifying-glass">
+    Browse the source code on [GitHub](https://github.com/denoland/deno)
+  </Card>
+</CardGroup>

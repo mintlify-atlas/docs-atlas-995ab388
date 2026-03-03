@@ -1,0 +1,350 @@
+---
+title: Submitting Changes
+description: Git workflow, pull request process, and contribution guidelines for Deno
+---
+
+This guide covers the process for submitting changes to the Deno project, from creating a branch to getting your pull request merged.
+
+## Git Workflow Overview
+
+Deno uses a standard GitHub-based git workflow:
+
+- The main branch is `main`
+- All development happens in feature branches
+- Changes are merged via pull requests
+- Commits are squashed when merged
+
+## Creating a Feature Branch
+
+<Steps>
+  <Step title="Create a descriptive branch">
+    Create a new git branch with a clear, descriptive name:
+
+    ```bash
+    git checkout -b feature/new-cli-command
+    # or
+    git checkout -b fix/bug-in-worker-threads
+    ```
+
+    **Branch naming conventions:**
+    - `feature/` - New features or enhancements
+    - `fix/` - Bug fixes
+    - `docs/` - Documentation updates
+    - `refactor/` - Code refactoring
+    - `test/` - Test additions or improvements
+  </Step>
+
+  <Step title="Make your changes">
+    Implement your feature or fix following the [style guide](/contributing/style-guide).
+  </Step>
+
+  <Step title="Format and lint your code">
+    Before committing, ensure your code is properly formatted and linted:
+
+    ```bash
+    # Format the code
+    ./tools/format.js
+
+    # Lint (for Rust changes)
+    ./tools/lint.js
+
+    # Lint (for JavaScript/TypeScript only)
+    ./tools/lint.js --js
+    ```
+  </Step>
+
+  <Step title="Run tests">
+    Verify that all relevant tests pass:
+
+    ```bash
+    # Run specific tests
+    cargo test <test_name>
+
+    # Run all tests (takes a while)
+    cargo test
+    ```
+  </Step>
+</Steps>
+
+## Committing Your Changes
+
+### Commit Messages
+
+Write clear and descriptive commit messages that explain the "why" rather than the "what":
+
+**Good commit messages:**
+```
+fix(ext/node): handle null keypair in tls connect
+
+The TLS connection would panic when encountering a null keypair.
+This change adds proper null checking and error handling.
+```
+
+```
+feat(cli): add --save-exact flag to deno add command
+
+Allows users to pin exact versions when adding dependencies,
+similar to npm's --save-exact behavior.
+```
+
+**Message format:**
+- Start with a type prefix: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
+- Include the scope in parentheses: `(ext/node)`, `(cli)`, `(runtime)`
+- Use imperative mood: "add" not "added" or "adds"
+- Keep the first line under 72 characters
+- Add detailed explanation in the body if needed
+
+### Making Commits
+
+```bash
+git add <files>
+git commit -m "feat(cli): add new feature"
+```
+
+<Note>
+  Don't worry about having multiple commits - they will be squashed when the PR is merged. Focus on clear, logical commits during development.
+</Note>
+
+## Pushing Your Branch
+
+Push your feature branch to the remote repository:
+
+```bash
+git push origin feature/new-cli-command
+```
+
+If this is the first push:
+
+```bash
+git push -u origin feature/new-cli-command
+```
+
+## Opening a Pull Request
+
+<Steps>
+  <Step title="Navigate to GitHub">
+    Go to the [Deno repository](https://github.com/denoland/deno) on GitHub.
+  </Step>
+
+  <Step title="Create pull request">
+    Click "New pull request" and select your branch to merge into `main`.
+  </Step>
+
+  <Step title="Write a clear description">
+    Your PR description should include:
+
+    - **Summary**: What changes you made
+    - **Motivation**: Why these changes were necessary
+    - **Context**: Links to related issues or discussions
+    - **Testing**: How you tested the changes
+    - **Screenshots**: If applicable for UI changes
+
+    **Example PR description:**
+    ```markdown
+    ## Summary
+    Adds a `--save-exact` flag to the `deno add` command to pin exact versions.
+
+    ## Motivation
+    Users migrating from npm expect the ability to save exact versions without
+    version ranges. This improves compatibility and matches common workflows.
+
+    ## Changes
+    - Added `--save-exact` flag to `cli/args/flags.rs`
+    - Updated dependency resolution logic
+    - Added tests in `tests/specs/add/`
+
+    ## Testing
+    - Added spec tests for exact version pinning
+    - Verified existing tests still pass
+    - Manually tested with various package types
+
+    Fixes #12345
+    ```
+  </Step>
+
+  <Step title="Submit the PR">
+    Click "Create pull request" to submit your changes for review.
+  </Step>
+</Steps>
+
+## PR Review Process
+
+### What to Expect
+
+- **Initial review**: Maintainers will review your PR within a few days
+- **Feedback**: You may receive requests for changes or clarifications
+- **Iterations**: Multiple rounds of review are common
+- **CI checks**: Automated tests must pass before merging
+
+### Responding to Feedback
+
+<Steps>
+  <Step title="Make requested changes">
+    Address the reviewer's feedback by making additional commits:
+
+    ```bash
+    # Make changes
+    git add <files>
+    git commit -m "address review feedback"
+    ```
+  </Step>
+
+  <Step title="Push updates">
+    Push your new commits to the same branch:
+
+    ```bash
+    git push origin feature/new-cli-command
+    ```
+
+    <Warning>
+      **Never force push** during the review process. Create new commits instead. This allows reviewers to see incremental changes.
+    </Warning>
+  </Step>
+
+  <Step title="Reply to comments">
+    Respond to reviewer comments on GitHub:
+    - Acknowledge feedback
+    - Explain your approach if needed
+    - Ask questions if something is unclear
+    - Mark conversations as resolved when addressed
+  </Step>
+</Steps>
+
+## PR Requirements
+
+### Before Submitting
+
+<CardGroup cols={2}>
+  <Card title="Code Quality" icon="code">
+    - Code is formatted with `./tools/format.js`
+    - No lint errors from `./tools/lint.js`
+    - Follows established code patterns
+    - Includes appropriate error handling
+  </Card>
+
+  <Card title="Testing" icon="flask">
+    - All existing tests pass
+    - New tests added for new functionality
+    - Edge cases are covered
+    - Tests follow spec test conventions
+  </Card>
+
+  <Card title="Documentation" icon="book">
+    - Code comments explain complex logic
+    - JSDoc/rustdoc for public APIs
+    - README updates if needed
+    - Examples for new features
+  </Card>
+
+  <Card title="Minimal Scope" icon="bullseye">
+    - Changes are focused and minimal
+    - No drive-by refactoring
+    - Separate PRs for unrelated changes
+    - Clear single purpose
+  </Card>
+</CardGroup>
+
+### During Review
+
+<Check>**Never force push** - Allows reviewers to see changes</Check>
+<Check>**Be responsive** - Address feedback promptly</Check>
+<Check>**Keep it focused** - Don't expand scope during review</Check>
+<Check>**Ask questions** - Clarify unclear feedback</Check>
+
+## Common PR Scenarios
+
+### Adding a New CLI Subcommand
+
+<Steps>
+  <Step title="Define command structure">
+    Add the command structure in `cli/args/flags.rs`:
+
+    ```rust
+    pub struct MyCommandFlags {
+      pub input: String,
+      pub output: Option<String>,
+    }
+    ```
+  </Step>
+
+  <Step title="Implement command handler">
+    Create the handler in `cli/tools/<command_name>.rs` or `cli/tools/<command_name>/mod.rs`.
+  </Step>
+
+  <Step title="Wire up in main.rs">
+    Connect the command in `cli/main.rs`.
+  </Step>
+
+  <Step title="Add spec tests">
+    Create tests in `tests/specs/<command_name>/`.
+  </Step>
+</Steps>
+
+Reference existing simple commands like `cli/tools/fmt.rs` or complex commands like `cli/tools/test/`.
+
+### Modifying an Extension
+
+<Steps>
+  <Step title="Navigate to extension">
+    Find the extension in `ext/<extension_name>/` (e.g., `ext/fs/`, `ext/net/`).
+  </Step>
+
+  <Step title="Update Rust ops">
+    Modify or add ops (operations) exposed to JavaScript.
+  </Step>
+
+  <Step title="Update JavaScript APIs">
+    Update the higher-level JavaScript APIs if needed.
+  </Step>
+
+  <Step title="Add tests">
+    Add tests in the extension's directory.
+  </Step>
+
+  <Step title="Update runtime if new extension">
+    If adding a new extension, update `runtime/worker.rs` to register it.
+  </Step>
+</Steps>
+
+## After Your PR is Merged
+
+<Steps>
+  <Step title="Delete your branch">
+    Clean up your local and remote branches:
+
+    ```bash
+    git checkout main
+    git pull origin main
+    git branch -d feature/new-cli-command
+    git push origin --delete feature/new-cli-command
+    ```
+  </Step>
+
+  <Step title="Check the release notes">
+    Your changes will be included in the next release. Check the [Releases.md](https://github.com/denoland/deno/blob/main/Releases.md) file for updates.
+  </Step>
+</Steps>
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github">
+    Search [existing issues](https://github.com/denoland/deno/issues) for similar questions or problems.
+  </Card>
+
+  <Card title="Pull Requests" icon="code-pull-request">
+    Review [recent PRs](https://github.com/denoland/deno/pulls) for examples of similar changes.
+  </Card>
+
+  <Card title="Discord Community" icon="discord">
+    Join the [Discord server](https://discord.gg/deno) to ask questions and discuss contributions.
+  </Card>
+
+  <Card title="Contributing Guide" icon="book">
+    Read the [full contributing guide](https://github.com/denoland/deno/blob/main/.github/CONTRIBUTING.md) for more details.
+  </Card>
+</CardGroup>
+
+<Note>
+  The Deno maintainers are helpful and welcoming to contributors. Don't hesitate to ask questions if you're unsure about anything.
+</Note>

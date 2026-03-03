@@ -1,0 +1,424 @@
+---
+title: Using npm Packages
+description: Learn how to use npm packages in Deno, including compatibility, configuration, and best practices for integrating the npm ecosystem.
+---
+
+Deno has native support for npm packages without requiring Node.js or npm to be installed. You can use millions of npm packages directly in your Deno projects.
+
+## Basic Usage
+
+### Direct npm Imports
+
+Import npm packages directly using the `npm:` specifier:
+
+```typescript
+import express from "npm:express@^4.18.2";
+import chalk from "npm:chalk@^5.3.0";
+import { z } from "npm:zod@^3.22.0";
+
+const app = express();
+
+app.get("/", (req, res) => {
+  res.send(chalk.blue("Hello from Deno with Express!"));
+});
+
+app.listen(3000);
+```
+
+### Using Import Maps
+
+For cleaner imports, add packages to your `deno.json`:
+
+```json deno.json
+{
+  "imports": {
+    "express": "npm:express@^4.18.2",
+    "chalk": "npm:chalk@^5.3.0",
+    "zod": "npm:zod@^3.22.0"
+  }
+}
+```
+
+```typescript
+import express from "express";
+import chalk from "chalk";
+import { z } from "zod";
+```
+
+## Adding npm Packages
+
+Use the `deno add` command:
+
+```bash
+# Add npm package
+deno add npm:express
+
+# Add with specific version
+deno add npm:chalk@5.3.0
+
+# Add multiple packages
+deno add npm:express npm:cors npm:dotenv
+```
+
+## Package Resolution
+
+Deno resolves npm packages using the following logic:
+
+1. Checks `deno.json` imports
+2. Downloads from npm registry
+3. Caches in global cache directory
+4. Optionally creates `node_modules` (if configured)
+
+### Global Cache
+
+By default, npm packages are cached globally:
+
+```bash
+# View cache info
+deno info npm:express
+
+# Cache a package
+deno cache npm:express@4.18.2
+
+# Clear cache
+rm -rf $(deno info --json | jq -r .npmCache)
+```
+
+### node_modules Directory
+
+For better compatibility with npm tooling, enable a local `node_modules`:
+
+```json deno.json
+{
+  "nodeModulesDir": "auto"
+}
+```
+
+Modes:
+- `"auto"` - Automatically create when npm packages are used
+- `"manual"` - Only use existing node_modules
+- `"none"` - Never use node_modules (default)
+
+## CommonJS Compatibility
+
+Deno automatically handles CommonJS modules:
+
+```typescript
+// Works with CJS packages
+import express from "npm:express";
+import _ from "npm:lodash";
+
+// ESM packages preferred when available
+import lodashEs from "npm:lodash-es";
+```
+
+<Note>
+Deno prefers ES modules. If a package exports both CommonJS and ESM, Deno will use the ESM version.
+</Note>
+
+## TypeScript Types
+
+### Automatic Type Resolution
+
+Deno automatically loads types from:
+
+1. Package's built-in types
+2. `@types/*` packages from npm
+3. TypeScript's type resolution
+
+```typescript
+// Types loaded automatically
+import express from "npm:express";
+import type { Request, Response } from "npm:express";
+```
+
+### Manual Type Imports
+
+If automatic resolution fails, import types explicitly:
+
+```typescript
+// @deno-types="npm:@types/lodash@^4.14.0"
+import _ from "npm:lodash";
+```
+
+Or add to `deno.json`:
+
+```json deno.json
+{
+  "compilerOptions": {
+    "types": ["npm:@types/node", "npm:@types/express"]
+  }
+}
+```
+
+## Lifecycle Scripts
+
+Some npm packages run scripts during installation. Control this with `allowScripts`:
+
+```json deno.json
+{
+  "allowScripts": false
+}
+```
+
+Or allow specific packages:
+
+```json deno.json
+{
+  "allowScripts": {
+    "allow": [
+      "npm:puppeteer",
+      "npm:esbuild",
+      "npm:playwright"
+    ],
+    "deny": ["npm:suspicious-package"]
+  }
+}
+```
+
+<Warning>
+Lifecycle scripts can execute arbitrary code. Only allow scripts from trusted packages.
+</Warning>
+
+## Built-in Node Modules
+
+Deno provides compatibility for Node.js built-in modules. See the [Node.js Compatibility](/guides/node-compatibility) guide for details.
+
+## Package Compatibility
+
+### Well-Supported Packages
+
+<CardGroup cols={2}>
+  <Card title="Web Frameworks" icon="globe">
+    - express
+    - fastify
+    - koa
+    - hono
+  </Card>
+  
+  <Card title="Utilities" icon="wrench">
+    - lodash / lodash-es
+    - date-fns
+    - zod
+    - chalk
+  </Card>
+  
+  <Card title="Testing" icon="vial">
+    - vitest
+    - playwright
+    - puppeteer
+  </Card>
+  
+  <Card title="Build Tools" icon="hammer">
+    - esbuild
+    - typescript
+    - prettier
+  </Card>
+</CardGroup>
+
+### Known Limitations
+
+Some packages may not work due to:
+- Native Node.js APIs not yet supported
+- Dynamic require() patterns
+- Bundler-specific features
+- Binary native modules
+
+## Subpath Imports
+
+Access package subpaths directly:
+
+```typescript
+// Main export
+import _ from "npm:lodash@^4.17.21";
+
+// Subpath
+import debounce from "npm:lodash@^4.17.21/debounce";
+
+// React example
+import React from "npm:react@^18.2.0";
+import { renderToString } from "npm:react-dom@^18.2.0/server";
+```
+
+## Peer Dependencies
+
+Deno handles peer dependencies automatically:
+
+```json deno.json
+{
+  "imports": {
+    "react": "npm:react@^18.2.0",
+    "react-dom": "npm:react-dom@^18.2.0"
+  }
+}
+```
+
+Both packages will share the same React version.
+
+## Development vs Production
+
+### Development
+
+Use version ranges for flexibility:
+
+```json deno.json
+{
+  "imports": {
+    "express": "npm:express@^4.18.0",
+    "zod": "npm:zod@^3.22.0"
+  }
+}
+```
+
+### Production
+
+Pin exact versions:
+
+```json deno.json
+{
+  "imports": {
+    "express": "npm:express@4.18.2",
+    "zod": "npm:zod@3.22.4"
+  },
+  "lock": {
+    "frozen": true
+  }
+}
+```
+
+## Real-World Example: Express Server
+
+```typescript main.ts
+import express from "npm:express@^4.18.2";
+import cors from "npm:cors@^2.8.5";
+import { z } from "npm:zod@^3.22.0";
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+const userSchema = z.object({
+  name: z.string(),
+  email: z.string().email(),
+  age: z.number().min(0),
+});
+
+app.post("/users", (req, res) => {
+  try {
+    const user = userSchema.parse(req.body);
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(400).json({ success: false, error });
+  }
+});
+
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});
+```
+
+```json deno.json
+{
+  "tasks": {
+    "dev": "deno run --allow-net --watch main.ts"
+  },
+  "imports": {
+    "express": "npm:express@^4.18.2",
+    "cors": "npm:cors@^2.8.5",
+    "zod": "npm:zod@^3.22.0"
+  },
+  "nodeModulesDir": "auto"
+}
+```
+
+Run with:
+
+```bash
+deno task dev
+```
+
+## Debugging npm Packages
+
+### Check Package Info
+
+```bash
+# View package information
+deno info npm:express
+
+# See all versions
+npm view express versions
+```
+
+### Inspect Cache
+
+```bash
+# View cache directory
+deno info --json | jq -r .npmCache
+
+# List cached packages
+ls $(deno info --json | jq -r .npmCache)
+```
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Module not found">
+    Ensure the package name and version are correct:
+    ```bash
+    deno cache --reload npm:package-name@version
+    ```
+  </Accordion>
+  
+  <Accordion title="Type errors">
+    Install type definitions:
+    ```bash
+    deno add npm:@types/package-name
+    ```
+  </Accordion>
+  
+  <Accordion title="Binary dependencies fail">
+    Some packages with native binaries may not work. Look for pure JavaScript alternatives.
+  </Accordion>
+  
+  <Accordion title="require() errors">
+    Enable node_modules mode:
+    ```json
+    { "nodeModulesDir": "auto" }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Prefer JSR when available">
+    Check if the package or an alternative exists on JSR first.
+  </Step>
+  
+  <Step title="Use import maps">
+    Add packages to `deno.json` instead of using direct `npm:` imports everywhere.
+  </Step>
+  
+  <Step title="Lock dependencies">
+    Use `deno.lock` to ensure consistent versions across environments.
+  </Step>
+  
+  <Step title="Test compatibility">
+    Test npm packages thoroughly before deploying to production.
+  </Step>
+  
+  <Step title="Monitor security">
+    Review `allowScripts` permissions and keep dependencies updated.
+  </Step>
+</Steps>
+
+## Migration from Node.js
+
+If migrating from Node.js:
+
+1. Convert `package.json` dependencies to `deno.json` imports
+2. Replace CommonJS `require()` with ES module `import`
+3. Update Node.js built-in imports (see [Node.js Compatibility](/guides/node-compatibility))
+4. Test with `nodeModulesDir: "auto"` if needed
+5. Gradually remove node_modules dependency

@@ -1,0 +1,132 @@
+---
+title: deno jupyter
+description: Integration with Jupyter notebooks
+---
+
+The `deno jupyter` command provides integration with Jupyter notebooks, allowing you to use Deno as a JavaScript and TypeScript kernel.
+
+## Usage
+
+```bash
+deno jupyter [OPTIONS]
+```
+
+## Description
+
+This command installs and manages the Deno kernel for Jupyter notebooks. Once installed, you can create and run Jupyter notebooks that execute JavaScript and TypeScript code using Deno.
+
+Without any flags, the command displays the current installation status.
+
+## Options
+
+<ParamField path="--install" type="boolean" default="false">
+  Install the Deno kernel for Jupyter.
+</ParamField>
+
+<ParamField path="--kernel" type="boolean" default="false">
+  Start the Deno kernel (typically called by Jupyter, not directly by users).
+</ParamField>
+
+<ParamField path="--conn-file" type="string">
+  Path to the connection file (used internally when starting the kernel).
+</ParamField>
+
+<ParamField path="--name" type="string">
+  Custom name for the kernel installation.
+</ParamField>
+
+<ParamField path="--display" type="string">
+  Custom display name for the kernel.
+</ParamField>
+
+<ParamField path="--force" type="boolean" default="false">
+  Force reinstallation even if already installed.
+</ParamField>
+
+## Examples
+
+### Check installation status
+
+```bash
+deno jupyter
+```
+
+### Install the Deno kernel
+
+```bash
+deno jupyter --install
+```
+
+### Install with a custom name
+
+```bash
+deno jupyter --install --name deno-custom
+```
+
+### Install with a custom display name
+
+```bash
+deno jupyter --install --display "Deno (Custom)"
+```
+
+### Force reinstall
+
+```bash
+deno jupyter --install --force
+```
+
+## Using Jupyter with Deno
+
+After installation, you can use the Deno kernel in Jupyter:
+
+1. Install the kernel:
+   ```bash
+   deno jupyter --install
+   ```
+
+2. Start Jupyter:
+   ```bash
+   jupyter notebook
+   ```
+   or
+   ```bash
+   jupyter lab
+   ```
+
+3. Create a new notebook and select "Deno" as the kernel
+
+4. Write and execute Deno code in notebook cells
+
+## Features
+
+- Full TypeScript support
+- Access to Deno APIs
+- npm package support
+- JSR package support
+- Top-level await
+- Rich display output
+- REPL-like experience
+
+## Example Notebook Code
+
+```typescript
+// Import from npm
+import chalk from "npm:chalk@5";
+
+console.log(chalk.blue("Hello from Deno in Jupyter!"));
+
+// Use Deno APIs
+const data = await Deno.readTextFile("./data.txt");
+console.log(data);
+
+// Display rich output
+const result = { message: "Success", value: 42 };
+result
+```
+
+## Notes
+
+- The command is marked as unstable and may change in future versions
+- Requires Jupyter to be installed separately (`pip install jupyter`)
+- The kernel runs with all permissions by default (for notebook convenience)
+- Test output capturing is currently not fully functional

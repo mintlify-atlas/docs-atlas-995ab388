@@ -1,0 +1,436 @@
+---
+title: Process APIs
+description: Deno APIs for spawning and managing subprocesses
+---
+
+Deno provides powerful APIs for spawning and managing subprocesses through the `Deno.Command` class.
+
+## Deno.Command
+
+Create and manage child processes.
+
+```typescript
+class Command {
+  constructor(command: string | URL, options?: CommandOptions)
+  output(): Promise<CommandOutput>
+  outputSync(): CommandOutput
+  spawn(): ChildProcess
+}
+```
+
+### Constructor
+
+<ParamField path="command" type="string | URL" required>
+  The command to execute (executable name or path)
+</ParamField>
+
+<ParamField path="options" type="CommandOptions">
+  Options for configuring the subprocess
+</ParamField>
+
+### CommandOptions
+
+<ParamField path="args" type="string[]">
+  Arguments to pass to the process
+</ParamField>
+
+<ParamField path="cwd" type="string | URL">
+  The working directory of the process. If not specified, the cwd of the parent process is used
+</ParamField>
+
+<ParamField path="env" type="Record<string, string>">
+  Environmental variables to pass to the subprocess
+</ParamField>
+
+<ParamField path="clearEnv" type="boolean" default="false">
+  Clear environmental variables from parent process
+</ParamField>
+
+<ParamField path="stdin" type="'piped' | 'inherit' | 'null'" default="'inherit'">
+  How stdin of the spawned process should be handled
+</ParamField>
+
+<ParamField path="stdout" type="'piped' | 'inherit' | 'null'" default="'inherit'">
+  How stdout of the spawned process should be handled
+</ParamField>
+
+<ParamField path="stderr" type="'piped' | 'inherit' | 'null'" default="'inherit'">
+  How stderr of the spawned process should be handled
+</ParamField>
+
+<ParamField path="uid" type="number">
+  Sets the child process's user ID (Unix only)
+</ParamField>
+
+<ParamField path="gid" type="number">
+  Sets the child process's group ID (Unix only)
+</ParamField>
+
+<ParamField path="signal" type="AbortSignal">
+  An AbortSignal that allows closing the process
+</ParamField>
+
+<ParamField path="windowsRawArguments" type="boolean" default="false">
+  Skips quoting and escaping of arguments on Windows
+</ParamField>
+
+<ParamField path="detached" type="boolean" default="false">
+  Whether to detach the spawned process from the current process
+</ParamField>
+
+## Running Commands
+
+### output()
+
+Executes the command, waiting for it to finish and collecting all output.
+
+```typescript
+output(): Promise<CommandOutput>
+```
+
+<ResponseField name="code" type="number">
+  The exit code of the child process
+</ResponseField>
+
+<ResponseField name="success" type="boolean">
+  True if the child process exits with a 0 status code
+</ResponseField>
+
+<ResponseField name="signal" type="Signal | null">
+  The signal associated with the child process
+</ResponseField>
+
+<ResponseField name="stdout" type="Uint8Array">
+  The buffered output from the child process's stdout
+</ResponseField>
+
+<ResponseField name="stderr" type="Uint8Array">
+  The buffered output from the child process's stderr
+</ResponseField>
+
+**Example:**
+
+```typescript
+const command = new Deno.Command("echo", {
+  args: ["hello", "world"],
+});
+
+const { code, stdout, stderr } = await command.output();
+console.assert(code === 0);
+console.log(new TextDecoder().decode(stdout)); // "hello world\n"
+```
+
+### outputSync()
+
+Synchronously executes the command.
+
+```typescript
+outputSync(): CommandOutput
+```
+
+**Example:**
+
+```typescript
+const command = new Deno.Command("echo", {
+  args: ["hello"],
+});
+
+const { code, stdout } = command.outputSync();
+console.assert(code === 0);
+console.log(new TextDecoder().decode(stdout)); // "hello\n"
+```
+
+### spawn()
+
+Spawns a streamable subprocess, allowing interaction with stdin/stdout/stderr.
+
+```typescript
+spawn(): ChildProcess
+```
+
+**Example:**
+
+```typescript
+const command = new Deno.Command("cat", {
+  stdin: "piped",
+  stdout: "piped",
+});
+
+const child = command.spawn();
+
+// Write to stdin
+const writer = child.stdin.getWriter();
+await writer.write(new TextEncoder().encode("Hello from Deno!"));
+await writer.close();
+
+// Read from stdout
+const output = await child.stdout.text();
+console.log(output); // "Hello from Deno!"
+
+const status = await child.status;
+console.log(status.code); // 0
+```
+
+## ChildProcess
+
+Represents a running subprocess.
+
+```typescript
+class ChildProcess implements AsyncDisposable {
+  readonly stdin: WritableStream<Uint8Array>
+  readonly stdout: SubprocessReadableStream
+  readonly stderr: SubprocessReadableStream
+  readonly pid: number
+  readonly status: Promise<CommandStatus>
+  
+  output(): Promise<CommandOutput>
+  kill(signo?: Signal | number): void
+  ref(): void
+  unref(): void
+}
+```
+
+<ResponseField name="stdin" type="WritableStream<Uint8Array>">
+  A writable stream to write to the subprocess's stdin
+</ResponseField>
+
+<ResponseField name="stdout" type="SubprocessReadableStream">
+  A readable stream of the subprocess's stdout
+</ResponseField>
+
+<ResponseField name="stderr" type="SubprocessReadableStream">
+  A readable stream of the subprocess's stderr
+</ResponseField>
+
+<ResponseField name="pid" type="number">
+  The process ID of the subprocess
+</ResponseField>
+
+<ResponseField name="status" type="Promise<CommandStatus>">
+  A promise that resolves when the subprocess exits
+</ResponseField>
+
+### SubprocessReadableStream
+
+Extends `ReadableStream<Uint8Array>` with convenience methods:
+
+```typescript
+interface SubprocessReadableStream extends ReadableStream<Uint8Array> {
+  arrayBuffer(): Promise<ArrayBuffer>
+  bytes(): Promise<Uint8Array>
+  text(): Promise<string>
+  json(): Promise<any>
+}
+```
+
+**Example:**
+
+```typescript
+const command = new Deno.Command("ls", {
+  args: ["-la"],
+  stdout: "piped",
+});
+
+const child = command.spawn();
+
+// Read as text
+const output = await child.stdout.text();
+console.log(output);
+
+// Or read as bytes
+const bytes = await child.stdout.bytes();
+
+// Or read as JSON (if output is JSON)
+const data = await child.stdout.json();
+```
+
+## Utility Functions
+
+### Deno.spawn()
+
+Shorthand for creating and spawning a command.
+
+```typescript
+function spawn(
+  command: string | URL,
+  options?: CommandOptions
+): ChildProcess
+
+function spawn(
+  command: string | URL,
+  args: string[],
+  options?: Omit<CommandOptions, "args">
+): ChildProcess
+```
+
+**Example:**
+
+```typescript
+const child = Deno.spawn("echo", ["hello"], {
+  stdout: "piped",
+});
+const output = await child.stdout.text();
+```
+
+### Deno.spawnAndWait()
+
+Shorthand for spawning and waiting for output.
+
+```typescript
+function spawnAndWait(
+  command: string | URL,
+  options?: CommandOptions
+): Promise<CommandOutput>
+
+function spawnAndWait(
+  command: string | URL,
+  args: string[],
+  options?: Omit<CommandOptions, "args">
+): Promise<CommandOutput>
+```
+
+**Example:**
+
+```typescript
+const { code, stdout } = await Deno.spawnAndWait("echo", ["hello"]);
+console.log(new TextDecoder().decode(stdout)); // "hello\n"
+```
+
+### Deno.kill()
+
+Send a signal to a process.
+
+```typescript
+function kill(pid: number, signo?: Signal | number): void
+```
+
+<ParamField path="pid" type="number" required>
+  The process ID to send the signal to
+</ParamField>
+
+<ParamField path="signo" type="Signal | number" default="'SIGTERM'">
+  The signal to send to the process
+</ParamField>
+
+**Example:**
+
+```typescript
+const command = new Deno.Command("sleep", { args: ["10000"] });
+const child = command.spawn();
+
+Deno.kill(child.pid, "SIGINT");
+```
+
+## Process Information
+
+### Deno.pid
+
+The current process ID.
+
+```typescript
+const pid: number
+```
+
+**Example:**
+
+```typescript
+console.log(Deno.pid); // e.g., 12345
+```
+
+### Deno.ppid
+
+The parent process ID.
+
+```typescript
+const ppid: number
+```
+
+**Example:**
+
+```typescript
+console.log(Deno.ppid); // e.g., 12344
+```
+
+## Examples
+
+### Running a command and capturing output
+
+```typescript
+const command = new Deno.Command("deno", {
+  args: ["eval", "console.log('hello'); console.error('world')"],
+});
+
+const { code, stdout, stderr } = await command.output();
+console.assert(code === 0);
+console.log("stdout:", new TextDecoder().decode(stdout)); // "hello\n"
+console.log("stderr:", new TextDecoder().decode(stderr)); // "world\n"
+```
+
+### Piping data to a subprocess
+
+```typescript
+const command = new Deno.Command("grep", {
+  args: ["hello"],
+  stdin: "piped",
+  stdout: "piped",
+});
+
+const child = command.spawn();
+
+// Write to stdin
+const writer = child.stdin.getWriter();
+await writer.write(new TextEncoder().encode("hello world\nfoo bar\n"));
+await writer.close();
+
+// Read output
+const output = await child.stdout.text();
+console.log(output); // "hello world\n"
+```
+
+### Setting environment variables
+
+```typescript
+const command = new Deno.Command("printenv", {
+  args: ["MY_VAR"],
+  env: {
+    MY_VAR: "my_value",
+  },
+});
+
+const { stdout } = await command.output();
+console.log(new TextDecoder().decode(stdout)); // "my_value\n"
+```
+
+### Using AbortSignal
+
+```typescript
+const controller = new AbortController();
+const { signal } = controller;
+
+const command = new Deno.Command("sleep", {
+  args: ["10"],
+  signal,
+});
+
+const child = command.spawn();
+
+// Abort after 1 second
+setTimeout(() => controller.abort(), 1000);
+
+const status = await child.status;
+console.log(status.signal); // "SIGTERM"
+```
+
+## Permissions
+
+All subprocess operations require the `--allow-run` permission:
+
+```bash
+# Allow all subprocess execution
+deno run --allow-run script.ts
+
+# Allow specific commands
+deno run --allow-run=echo,ls script.ts
+```
+
+**Warning:** `--allow-run` is effectively the same as `--allow-all` as malicious code could execute any arbitrary code on the host.

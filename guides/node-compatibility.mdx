@@ -1,0 +1,432 @@
+---
+title: Node.js Compatibility Layer
+description: Learn about Deno's Node.js compatibility layer, including built-in module support, CommonJS handling, and migration strategies from Node.js.
+---
+
+Deno provides a compatibility layer for Node.js built-in modules, allowing you to run Node.js code with minimal changes. This enables gradual migration and use of the Node.js ecosystem.
+
+## Built-in Node Modules
+
+Deno supports most Node.js built-in modules through the `node:` specifier:
+
+```typescript
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as http from "node:http";
+import { Buffer } from "node:buffer";
+import process from "node:process";
+```
+
+### Supported Node Modules
+
+<CardGroup cols={3}>
+  <Card title="File System" icon="folder">
+    - node:fs
+    - node:fs/promises
+    - node:path
+  </Card>
+  
+  <Card title="Networking" icon="network-wired">
+    - node:http
+    - node:https
+    - node:net
+    - node:dgram
+    - node:dns
+  </Card>
+  
+  <Card title="Utilities" icon="toolbox">
+    - node:buffer
+    - node:events
+    - node:stream
+    - node:util
+    - node:url
+  </Card>
+  
+  <Card title="Process" icon="microchip">
+    - node:process
+    - node:child_process
+    - node:os
+  </Card>
+  
+  <Card title="Crypto" icon="lock">
+    - node:crypto
+    - node:tls
+  </Card>
+  
+  <Card title="Other" icon="ellipsis">
+    - node:assert
+    - node:querystring
+    - node:timers
+    - node:zlib
+  </Card>
+</CardGroup>
+
+## Usage Examples
+
+### File System Operations
+
+```typescript
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+
+// Read file
+const data = await fs.readFile("file.txt", "utf-8");
+
+// Write file
+await fs.writeFile("output.txt", "Hello, World!");
+
+// Path operations
+const fullPath = path.join("/home", "user", "file.txt");
+const ext = path.extname("file.txt"); // ".txt"
+```
+
+### HTTP Server
+
+```typescript
+import http from "node:http";
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("Hello from Deno with Node.js compatibility!\n");
+});
+
+server.listen(3000, () => {
+  console.log("Server running at http://localhost:3000/");
+});
+```
+
+### Buffer Operations
+
+```typescript
+import { Buffer } from "node:buffer";
+
+const buf = Buffer.from("Hello, World!", "utf-8");
+console.log(buf.toString("hex"));
+
+const buf2 = Buffer.alloc(10);
+buf2.write("Deno");
+```
+
+### Process and Environment
+
+```typescript
+import process from "node:process";
+
+console.log("Node version:", process.version);
+console.log("Platform:", process.platform);
+console.log("Environment:", process.env.HOME);
+
+process.on("exit", (code) => {
+  console.log(`Process exiting with code ${code}`);
+});
+```
+
+## CommonJS Support
+
+Deno automatically handles CommonJS modules from npm packages:
+
+```typescript
+// Works with CJS packages
+import express from "npm:express";
+import _ from "npm:lodash";
+
+// Also works with require() in .cjs files
+const fs = require("node:fs");
+```
+
+### Enabling CJS Detection
+
+For better CommonJS support, enable the unstable feature:
+
+```json deno.json
+{
+  "unstable": ["detect-cjs"]
+}
+```
+
+Or via CLI:
+
+```bash
+deno run --unstable-detect-cjs script.js
+```
+
+## Global Node Variables
+
+Deno provides Node.js globals when needed:
+
+```typescript
+// Available globals
+console.log(process.version);
+console.log(__dirname);
+console.log(__filename);
+console.log(global);
+```
+
+Enable explicit Node globals:
+
+```json deno.json
+{
+  "unstable": ["node-globals"]
+}
+```
+
+## Package.json Support
+
+Deno can read `package.json` for Node.js compatibility:
+
+```json package.json
+{
+  "name": "my-app",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
+```
+
+Deno will:
+- Resolve dependencies from `package.json`
+- Respect the `"type": "module"` field
+- Use `node_modules` if configured
+
+## node_modules Compatibility
+
+For maximum Node.js compatibility, enable node_modules:
+
+```json deno.json
+{
+  "nodeModulesDir": "auto"
+}
+```
+
+This creates a local `node_modules` directory compatible with Node.js tools.
+
+### Bring Your Own node_modules (BYONM)
+
+Use existing node_modules from npm/yarn/pnpm:
+
+```json deno.json
+{
+  "unstable": ["byonm"],
+  "nodeModulesDir": "manual"
+}
+```
+
+Then use your preferred package manager:
+
+```bash
+npm install
+deno run main.ts
+```
+
+## Bare Specifiers
+
+Enable Node.js-style bare specifiers for built-in modules:
+
+```json deno.json
+{
+  "unstable": ["bare-node-builtins"]
+}
+```
+
+Now you can import without the `node:` prefix:
+
+```typescript
+// With bare-node-builtins enabled
+import fs from "fs";
+import path from "path";
+import http from "http";
+```
+
+<Warning>
+Explicit `node:` prefixes are recommended for clarity and future compatibility.
+</Warning>
+
+## Limitations
+
+While Deno provides extensive Node.js compatibility, some features are not supported:
+
+<AccordionGroup>
+  <Accordion title="Not Supported">
+    - `node:vm` - Virtual machine contexts
+    - `node:v8` - V8 engine internals
+    - `node:domain` - Deprecated domain module
+    - Some native addons requiring N-API
+  </Accordion>
+  
+  <Accordion title="Partial Support">
+    - `node:child_process` - Some options may differ
+    - `node:cluster` - Limited support
+    - `node:worker_threads` - Use Deno's Web Workers instead
+  </Accordion>
+</AccordionGroup>
+
+## Migration from Node.js
+
+Migrating a Node.js project to Deno:
+
+<Steps>
+  <Step title="Add node: prefixes">
+    Update built-in imports:
+    ```typescript
+    // Before (Node.js)
+    import fs from "fs";
+    
+    // After (Deno)
+    import fs from "node:fs";
+    ```
+  </Step>
+  
+  <Step title="Convert to ES modules">
+    Replace CommonJS with ES modules:
+    ```typescript
+    // Before
+    const express = require("express");
+    module.exports = app;
+    
+    // After
+    import express from "npm:express";
+    export default app;
+    ```
+  </Step>
+  
+  <Step title="Update package imports">
+    Add npm: prefix or use import map:
+    ```json deno.json
+    {
+      "imports": {
+        "express": "npm:express@^4.18.2"
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Configure compatibility">
+    ```json deno.json
+    {
+      "nodeModulesDir": "auto",
+      "unstable": ["detect-cjs", "bare-node-builtins"]
+    }
+    ```
+  </Step>
+  
+  <Step title="Update scripts">
+    Replace npm scripts with Deno tasks:
+    ```json deno.json
+    {
+      "tasks": {
+        "start": "deno run --allow-net --allow-read main.ts",
+        "dev": "deno run --allow-net --allow-read --watch main.ts"
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Real-World Example: Express Server Migration
+
+### Node.js Version
+
+```javascript index.js
+const express = require("express");
+const fs = require("fs");
+const path = require("path");
+
+const app = express();
+
+app.get("/", (req, res) => {
+  const data = fs.readFileSync(path.join(__dirname, "data.txt"), "utf-8");
+  res.send(data);
+});
+
+app.listen(3000);
+```
+
+### Deno Version
+
+```typescript main.ts
+import express from "npm:express@^4.18.2";
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const app = express();
+
+app.get("/", (req, res) => {
+  const data = readFileSync(join(__dirname, "data.txt"), "utf-8");
+  res.send(data);
+});
+
+app.listen(3000);
+```
+
+```json deno.json
+{
+  "tasks": {
+    "start": "deno run --allow-net --allow-read main.ts"
+  },
+  "imports": {
+    "express": "npm:express@^4.18.2"
+  }
+}
+```
+
+## Deno-First Alternatives
+
+When possible, use Deno's native APIs instead of Node.js compatibility:
+
+<CodeGroup>
+```typescript Node.js Compatibility
+import { readFile } from "node:fs/promises";
+import http from "node:http";
+
+const data = await readFile("file.txt", "utf-8");
+
+const server = http.createServer((req, res) => {
+  res.end("Hello");
+});
+```
+
+```typescript Deno Native
+// Deno's native APIs
+const data = await Deno.readTextFile("file.txt");
+
+Deno.serve(() => new Response("Hello"));
+```
+</CodeGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use node: prefix" icon="tag">
+    Always use `node:` prefix for clarity: `import fs from "node:fs"`
+  </Card>
+  
+  <Card title="Prefer Deno APIs" icon="deno">
+    Use Deno's native APIs when possible for better performance
+  </Card>
+  
+  <Card title="Test thoroughly" icon="vial">
+    Test Node.js compatibility features before production
+  </Card>
+  
+  <Card title="Gradual migration" icon="arrows-turn-right">
+    Migrate incrementally, using compatibility layer as needed
+  </Card>
+</CardGroup>
+
+## Checking Compatibility
+
+Test if a Node.js module works in Deno:
+
+```bash
+# Try importing
+deno eval "import 'node:fs'; console.log('Works!')"
+
+# Check with npm package
+deno eval "import express from 'npm:express'; console.log('Express works!')"
+```

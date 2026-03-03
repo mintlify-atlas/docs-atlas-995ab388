@@ -1,0 +1,224 @@
+---
+title: deno add
+description: Add dependencies to your Deno project
+---
+
+The `deno add` command adds dependencies to your project's configuration file.
+
+## Usage
+
+```bash
+deno add [OPTIONS] <PACKAGES...>
+```
+
+## Description
+
+Adds packages to your `deno.json` imports or `package.json` dependencies. The command:
+- Resolves the package to find the latest compatible version
+- Updates your configuration file with the dependency
+- Installs the package and updates the lockfile
+
+Packages can be from JSR (JavaScript Registry) or npm.
+
+## Arguments
+
+<ParamField path="PACKAGES" type="string[]" required>
+  One or more packages to add. Format:
+  - `jsr:@scope/package` - JSR package
+  - `npm:package` - npm package  
+  - `@scope/package@version` - specific version
+  - `alias@jsr:@scope/package` - custom import name
+</ParamField>
+
+## Options
+
+<ParamField path="--dev" type="boolean" default="false">
+  Add as a development dependency (package.json only).
+</ParamField>
+
+<ParamField path="--npm" type="boolean" default="false">
+  Default to npm packages when no prefix is specified.
+</ParamField>
+
+<ParamField path="--jsr" type="boolean" default="false">
+  Default to JSR packages when no prefix is specified.
+</ParamField>
+
+<ParamField path="--lockfile-only" type="boolean" default="false">
+  Only update the lockfile, don't install packages.
+</ParamField>
+
+<ParamField path="--save-exact" type="boolean" default="false">
+  Save exact version instead of using a semver range (e.g., `1.0.0` instead of `^1.0.0`).
+</ParamField>
+
+## Examples
+
+### Add a JSR package
+
+```bash
+deno add jsr:@std/assert
+```
+
+This adds to `deno.json`:
+```json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0"
+  }
+}
+```
+
+### Add an npm package
+
+```bash
+deno add npm:express
+```
+
+This adds to `deno.json`:
+```json
+{
+  "imports": {
+    "express": "npm:express@^4.18.2"
+  }
+}
+```
+
+### Add multiple packages
+
+```bash
+deno add jsr:@std/assert npm:chalk jsr:@oak/oak
+```
+
+### Add with custom alias
+
+```bash
+deno add my-assert@jsr:@std/assert
+```
+
+This adds:
+```json
+{
+  "imports": {
+    "my-assert": "jsr:@std/assert@^1.0.0"
+  }
+}
+```
+
+### Add a specific version
+
+```bash
+deno add jsr:@std/assert@1.0.0
+```
+
+### Add exact version (no caret)
+
+```bash
+deno add --save-exact jsr:@std/assert
+```
+
+This adds:
+```json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1.0.0"
+  }
+}
+```
+
+### Add as dev dependency (package.json)
+
+```bash
+deno add --dev npm:typescript
+```
+
+This adds to `package.json`:
+```json
+{
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
+```
+
+### Use npm as default registry
+
+```bash
+deno add --npm chalk express
+```
+
+### Only update lockfile
+
+```bash
+deno add --lockfile-only jsr:@std/assert
+```
+
+## Configuration File Selection
+
+### deno.json
+
+Preferred for JSR packages and most Deno projects:
+```json
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.0",
+    "express": "npm:express@^4.18.2"
+  }
+}
+```
+
+### package.json
+
+Used for npm packages when:
+- `package.json` exists and no `deno.json`
+- `package.json` is closer to the current directory
+- Adding npm packages with `--npm` flag
+
+```json
+{
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
+```
+
+For JSR packages in `package.json`, they're converted to npm equivalents:
+```json
+{
+  "dependencies": {
+    "@jsr/std__assert": "npm:@jsr/std__assert@^1.0.0"
+  }
+}
+```
+
+## Version Resolution
+
+- Without a version specifier, adds the latest compatible version
+- Uses `^` (caret) range by default for compatibility
+- Use `--save-exact` to pin to exact versions
+- Supports `~` (tilde) ranges: `deno add jsr:@std/assert@~1.0.0`
+
+## Aliases
+
+Create custom import names:
+
+```bash
+deno add assert@jsr:@std/assert
+deno add $@npm:jquery
+```
+
+In your code:
+```typescript
+import { assertEquals } from "assert";
+import $ from "$";
+```
+
+## Notes
+
+- If neither `deno.json` nor `package.json` exist, a `deno.json` will be created
+- The command automatically runs `deno install` after updating the config
+- JSR packages are preferred for Deno projects
+- npm packages work seamlessly through Deno's npm compatibility layer

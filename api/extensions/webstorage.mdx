@@ -1,0 +1,315 @@
+---
+title: Web Storage extension
+description: Client-side data storage with localStorage and sessionStorage
+---
+
+# Web Storage extension
+
+The Web Storage extension (`ext/webstorage/`) implements the [Web Storage specification](https://html.spec.whatwg.org/multipage/webstorage.html) in Deno, providing `localStorage` and `sessionStorage` APIs for client-side data persistence.
+
+## Overview
+
+The Web Storage API provides two mechanisms for storing key-value pairs in a web-compatible way:
+
+- **`localStorage`** - Persistent storage that survives browser restarts
+- **`sessionStorage`** - Temporary storage cleared when the session ends
+
+<Info>
+In Deno, both `localStorage` and `sessionStorage` are available when running in a browser-like context or when explicitly enabled.
+</Info>
+
+## Basic usage
+
+### Storing data
+
+```typescript
+// Store a value
+localStorage.setItem("username", "alice");
+localStorage.setItem("theme", "dark");
+
+// Store numbers (converted to strings)
+localStorage.setItem("count", "42");
+
+// Store objects (must be serialized)
+const user = { id: 1, name: "Alice" };
+localStorage.setItem("user", JSON.stringify(user));
+```
+
+### Retrieving data
+
+```typescript
+// Get a value
+const username = localStorage.getItem("username");
+console.log(username); // "alice"
+
+// Get a number
+const count = parseInt(localStorage.getItem("count") || "0");
+
+// Get an object
+const userJson = localStorage.getItem("user");
+const user = userJson ? JSON.parse(userJson) : null;
+```
+
+### Removing data
+
+```typescript
+// Remove a specific item
+localStorage.removeItem("theme");
+
+// Clear all items
+localStorage.clear();
+```
+
+### Checking for existence
+
+```typescript
+// Check if a key exists
+if (localStorage.getItem("username") !== null) {
+  console.log("Username is set");
+}
+
+// Get number of stored items
+console.log("Items stored:", localStorage.length);
+```
+
+## Working with complex data
+
+### Storing arrays
+
+```typescript
+const items = ["apple", "banana", "orange"];
+localStorage.setItem("fruits", JSON.stringify(items));
+
+// Retrieve
+const fruitsJson = localStorage.getItem("fruits");
+const fruits = fruitsJson ? JSON.parse(fruitsJson) : [];
+console.log(fruits); // ["apple", "banana", "orange"]
+```
+
+### Storing objects with metadata
+
+```typescript
+interface StoredData<T> {
+  value: T;
+  timestamp: number;
+  expiresAt?: number;
+}
+
+function setWithExpiry<T>(key: string, value: T, ttlMs?: number) {
+  const data: StoredData<T> = {
+    value,
+    timestamp: Date.now(),
+    expiresAt: ttlMs ? Date.now() + ttlMs : undefined,
+  };
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+function getWithExpiry<T>(key: string): T | null {
+  const json = localStorage.getItem(key);
+  if (!json) return null;
+  
+  const data: StoredData<T> = JSON.parse(json);
+  
+  // Check if expired
+  if (data.expiresAt && Date.now() > data.expiresAt) {
+    localStorage.removeItem(key);
+    return null;
+  }
+  
+  return data.value;
+}
+
+// Usage
+setWithExpiry("session", { userId: 123 }, 3600000); // 1 hour TTL
+const session = getWithExpiry<{ userId: number }>("session");
+```
+
+## sessionStorage
+
+`sessionStorage` works identically to `localStorage` but has different persistence characteristics:
+
+```typescript
+// Store temporary data
+sessionStorage.setItem("tempToken", "abc123");
+
+// Retrieve
+const token = sessionStorage.getItem("tempToken");
+
+// Clear session data
+sessionStorage.clear();
+```
+
+### Differences from localStorage
+
+| Feature | localStorage | sessionStorage |
+|---------|--------------|----------------|
+| Persistence | Survives restarts | Cleared on session end |
+| Scope | All tabs/windows | Single tab/window |
+| Use case | Long-term storage | Temporary session data |
+
+## Iterating over storage
+
+### Get all keys
+
+```typescript
+function getAllKeys(): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key) keys.push(key);
+  }
+  return keys;
+}
+
+const keys = getAllKeys();
+console.log("Stored keys:", keys);
+```
+
+### Get all items
+
+```typescript
+function getAllItems(): Record<string, string> {
+  const items: Record<string, string> = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key) {
+      const value = localStorage.getItem(key);
+      if (value !== null) {
+        items[key] = value;
+      }
+    }
+  }
+  return items;
+}
+
+const allData = getAllItems();
+console.log("All stored data:", allData);
+```
+
+## Storage events
+
+Listen for changes to storage (works across different browsing contexts):
+
+```typescript
+window.addEventListener("storage", (event: StorageEvent) => {
+  console.log("Storage changed:");
+  console.log("Key:", event.key);
+  console.log("Old value:", event.oldValue);
+  console.log("New value:", event.newValue);
+  console.log("URL:", event.url);
+  console.log("Storage area:", event.storageArea);
+});
+```
+
+<Note>
+Storage events are fired when storage is modified in a different window/tab of the same origin, not in the current context.
+</Note>
+
+## API reference
+
+### Storage interface
+
+Both `localStorage` and `sessionStorage` implement the `Storage` interface:
+
+<ResponseField name="length" type="number">
+  Returns the number of key-value pairs stored.
+</ResponseField>
+
+<ResponseField name="key" type="(index: number) => string | null">
+  Returns the name of the key at the specified index, or null if the index is out of range.
+</ResponseField>
+
+<ResponseField name="getItem" type="(key: string) => string | null">
+  Returns the value associated with the given key, or null if the key doesn't exist.
+</ResponseField>
+
+<ResponseField name="setItem" type="(key: string, value: string) => void">
+  Stores a key-value pair. If the key already exists, its value is updated.
+</ResponseField>
+
+<ResponseField name="removeItem" type="(key: string) => void">
+  Removes the key-value pair with the given key.
+</ResponseField>
+
+<ResponseField name="clear" type="() => void">
+  Removes all key-value pairs.
+</ResponseField>
+
+## Storage limits
+
+<Warning>
+Web Storage implementations typically have size limits (often 5-10 MB per origin). Exceeding the quota will throw a `QuotaExceededError`.
+</Warning>
+
+```typescript
+try {
+  localStorage.setItem("largeData", "x".repeat(10_000_000));
+} catch (error) {
+  if (error instanceof DOMException && error.name === "QuotaExceededError") {
+    console.error("Storage quota exceeded");
+  }
+}
+```
+
+## Best practices
+
+<AccordionGroup>
+  <Accordion title="Always handle null returns">
+    `getItem()` returns `null` if the key doesn't exist:
+    
+    ```typescript
+    const value = localStorage.getItem("key") ?? "default";
+    ```
+  </Accordion>
+  
+  <Accordion title="Serialize complex data">
+    Web Storage only stores strings, so serialize objects:
+    
+    ```typescript
+    // Store
+    localStorage.setItem("data", JSON.stringify({ x: 1 }));
+    
+    // Retrieve
+    const data = JSON.parse(localStorage.getItem("data") || "null");
+    ```
+  </Accordion>
+  
+  <Accordion title="Handle JSON parsing errors">
+    Always wrap `JSON.parse()` in try-catch:
+    
+    ```typescript
+    try {
+      const data = JSON.parse(localStorage.getItem("data") || "null");
+    } catch {
+      console.error("Invalid JSON in storage");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use namespaced keys">
+    Prefix keys to avoid conflicts:
+    
+    ```typescript
+    localStorage.setItem("myapp:user:preferences", data);
+    ```
+  </Accordion>
+  
+  <Accordion title="Don't store sensitive data">
+    Web Storage is not encrypted. Never store passwords, tokens, or sensitive information.
+  </Accordion>
+</AccordionGroup>
+
+## Security considerations
+
+<Warning>
+- **Not secure**: Data is stored in plain text
+- **XSS vulnerable**: Accessible via JavaScript
+- **Same-origin policy**: Only accessible within the same origin
+- **Use cookies for sensitive data**: Prefer secure, httpOnly cookies for authentication tokens
+</Warning>
+
+## Related documentation
+
+- [Web extension](/api/extensions/web)
+- [Extensions overview](/api/extensions/overview)
+- [IndexedDB](/api/web-platform-apis) (for larger data storage)

@@ -1,0 +1,190 @@
+---
+title: deno publish
+description: Publish a package to JSR (JavaScript Registry)
+---
+
+The `deno publish` command publishes your package to JSR, the JavaScript Registry.
+
+## Usage
+
+```bash
+deno publish [OPTIONS]
+```
+
+## Description
+
+Publishes packages to JSR. This command handles the entire publishing workflow:
+- Validates your package configuration
+- Runs fast check (by default) to ensure public APIs are well-typed
+- Creates and uploads a tarball to JSR
+- Optionally generates provenance for supply chain security
+
+The command looks for packages to publish in your workspace based on `deno.json` or `jsr.json` configuration files.
+
+## Options
+
+<ParamField path="--token" type="string">
+  Authentication token for JSR. If not provided, the command will prompt for interactive authentication.
+</ParamField>
+
+<ParamField path="--dry-run" type="boolean" default="false">
+  Prepare the package but don't actually publish it. Useful for testing.
+</ParamField>
+
+<ParamField path="--allow-slow-types" type="boolean" default="false">
+  Allow publishing with slow types. By default, the command ensures all public APIs use fast check compatible types for better performance.
+</ParamField>
+
+<ParamField path="--allow-dirty" type="boolean" default="false">
+  Allow publishing with uncommitted changes in the git repository.
+</ParamField>
+
+<ParamField path="--no-provenance" type="boolean" default="false">
+  Skip generating provenance. By default, provenance is generated on GitHub Actions with OIDC token.
+</ParamField>
+
+<ParamField path="--set-version" type="string">
+  Set the version to publish. Cannot be used when publishing a workspace with multiple packages.
+</ParamField>
+
+## Package Configuration
+
+Your `deno.json` must include:
+
+```json
+{
+  "name": "@scope/package-name",
+  "version": "1.0.0",
+  "exports": "./mod.ts"
+}
+```
+
+### Required Fields
+
+- `name`: Package name in the format `@scope/package-name`
+- `version`: Semantic version of the package
+- `exports`: Entry point(s) for the package
+
+### Optional Fields
+
+```json
+{
+  "name": "@scope/package-name",
+  "version": "1.0.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./utils": "./utils.ts"
+  },
+  "publish": {
+    "include": ["**/*.ts", "README.md"],
+    "exclude": ["**/*_test.ts"]
+  },
+  "license": "MIT"
+}
+```
+
+## Examples
+
+### Publish a package (interactive auth)
+
+```bash
+deno publish
+```
+
+### Dry run to test publishing
+
+```bash
+deno publish --dry-run
+```
+
+### Publish with a token
+
+```bash
+deno publish --token=<your-token>
+```
+
+### Publish allowing slow types
+
+```bash
+deno publish --allow-slow-types
+```
+
+### Publish with uncommitted changes
+
+```bash
+deno publish --allow-dirty
+```
+
+### Set version during publish
+
+```bash
+deno publish --set-version 2.0.0
+```
+
+### Publish workspace packages
+
+For a monorepo with multiple packages:
+
+```bash
+deno publish
+```
+
+This will publish all packages in the workspace in dependency order.
+
+## Publishing Workflow
+
+1. **Configuration Check**: Validates `deno.json` has required fields
+2. **File Collection**: Gathers files based on `publish.include` and `publish.exclude`
+3. **Type Checking**: Runs fast check on public APIs (unless `--allow-slow-types`)
+4. **Graph Analysis**: Ensures no excluded modules or invalid imports
+5. **Git Check**: Verifies no uncommitted changes (unless `--allow-dirty`)
+6. **Scope/Package Check**: Ensures scope and package exist on JSR
+7. **Tarball Creation**: Creates a gzipped tarball of the package
+8. **Upload**: Uploads to JSR with authentication
+9. **Provenance**: Generates and submits provenance (if on GitHub Actions)
+
+## Fast Check
+
+By default, Deno enforces "fast check" for published packages. This ensures:
+- Public APIs are fully typed
+- Types can be checked without executing code
+- Better performance for package consumers
+- Automatic `.d.ts` file generation for Node.js users
+
+To bypass this requirement:
+
+```bash
+deno publish --allow-slow-types
+```
+
+Note: This is not recommended as it may lead to poor type checking performance for users.
+
+## Provenance
+
+When publishing from GitHub Actions with OIDC token support, Deno automatically generates provenance:
+- Creates a signed attestation of the package
+- Publishes to Sigstore transparency log
+- Provides supply chain security guarantees
+
+To disable:
+
+```bash
+deno publish --no-provenance
+```
+
+## Environment Variables
+
+<ParamField path="DENO_TESTING_DISABLE_GIT_CHECK" type="boolean">
+  Skip git dirty check (for testing only).
+</ParamField>
+
+<ParamField path="DISABLE_JSR_PROVENANCE" type="boolean">
+  Disable provenance generation.
+</ParamField>
+
+## Notes
+
+- The first time you publish a scope or package, you'll need to create it on JSR first
+- Packages are immutable once published - you cannot unpublish or modify a published version
+- Version numbers must follow semantic versioning
+- Package names must be lowercase and can contain letters, numbers, and hyphens

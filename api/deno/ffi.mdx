@@ -1,0 +1,456 @@
+---
+title: Foreign Function Interface (FFI)
+description: Deno FFI API for calling native libraries and foreign functions
+---
+
+Deno's Foreign Function Interface (FFI) allows you to call functions from native libraries (shared libraries, dynamic libraries, or DLLs) written in languages like C, C++, or Rust.
+
+## Opening a Dynamic Library
+
+### Deno.dlopen()
+
+Opens a dynamic library and returns a handle to it.
+
+```typescript
+function dlopen<S extends ForeignLibraryInterface>(
+  filename: string | URL,
+  symbols: S
+): DynamicLibrary<S>
+```
+
+<ParamField path="filename" type="string | URL" required>
+  Path to the dynamic library file (.so, .dylib, or .dll)
+</ParamField>
+
+<ParamField path="symbols" type="ForeignLibraryInterface" required>
+  Object describing the symbols (functions) to load from the library
+</ParamField>
+
+**Example:**
+
+```typescript
+const library = Deno.dlopen(
+  "./libexample.so",
+  {
+    add: { parameters: ["i32", "i32"], result: "i32" },
+    multiply: { parameters: ["f64", "f64"], result: "f64" },
+  } as const,
+);
+
+const result = library.symbols.add(5, 3);
+console.log(result); // 8
+
+library.close();
+```
+
+Requires `allow-ffi` permission.
+
+## Type System
+
+### Number Types
+
+#### Plain Numbers
+
+```typescript
+type NativeNumberType =
+  | "u8"    // Unsigned 8-bit integer
+  | "i8"    // Signed 8-bit integer
+  | "u16"   // Unsigned 16-bit integer
+  | "i16"   // Signed 16-bit integer
+  | "u32"   // Unsigned 32-bit integer
+  | "i32"   // Signed 32-bit integer
+  | "f32"   // 32-bit floating point
+  | "f64";  // 64-bit floating point
+```
+
+#### BigInt Numbers
+
+```typescript
+type NativeBigIntType =
+  | "u64"    // Unsigned 64-bit integer
+  | "i64"    // Signed 64-bit integer
+  | "usize"  // Pointer-sized unsigned integer
+  | "isize"; // Pointer-sized signed integer
+```
+
+### Pointer Types
+
+```typescript
+type NativePointerType =
+  | "pointer"  // Generic pointer
+  | "buffer"   // TypedArray or ArrayBuffer
+  | "function"; // Function pointer
+```
+
+### Special Types
+
+```typescript
+type NativeType =
+  | NativeNumberType
+  | NativeBigIntType  
+  | NativePointerType
+  | "void";  // No return value
+```
+
+## Function Definitions
+
+### Basic Function
+
+```typescript
+interface ForeignFunction {
+  parameters: readonly NativeType[];
+  result: NativeType;
+  callback?: boolean;
+  nonblocking?: boolean;
+}
+```
+
+<ParamField path="parameters" type="readonly NativeType[]" required>
+  Array of parameter types
+</ParamField>
+
+<ParamField path="result" type="NativeType" required>
+  Return type of the function
+</ParamField>
+
+<ParamField path="callback" type="boolean" default="false">
+  Whether this is a callback function
+</ParamField>
+
+<ParamField path="nonblocking" type="boolean" default="false">
+  Whether to call the function in a non-blocking manner
+</ParamField>
+
+**Example:**
+
+```typescript
+const library = Deno.dlopen("./libmath.so", {
+  // Simple function: int add(int a, int b)
+  add: {
+    parameters: ["i32", "i32"],
+    result: "i32",
+  },
+  
+  // Function with double: double sqrt(double x)
+  sqrt: {
+    parameters: ["f64"],
+    result: "f64",
+  },
+  
+  // Non-blocking function
+  slow_operation: {
+    parameters: ["i32"],
+    result: "i32",
+    nonblocking: true,
+  },
+} as const);
+```
+
+## Working with Pointers
+
+### Deno.UnsafePointer
+
+Represents a pointer to native memory.
+
+```typescript
+class UnsafePointer {
+  static of(value: Deno.UnsafeCallback | BufferSource): PointerValue
+  static create(value: number | bigint): PointerValue
+  static equals(a: PointerValue, b: PointerValue): boolean
+  static offset(value: PointerValue, offset: number): PointerValue
+}
+```
+
+**Example:**
+
+```typescript
+const buffer = new Uint8Array([1, 2, 3, 4]);
+const pointer = Deno.UnsafePointer.of(buffer);
+
+// Call a function that takes a pointer
+library.symbols.process_buffer(pointer, buffer.length);
+```
+
+### Deno.UnsafePointerView
+
+Provides a view into pointer memory.
+
+```typescript
+class UnsafePointerView {
+  constructor(pointer: PointerValue)
+  
+  getUint8(offset?: number): number
+  getInt8(offset?: number): number
+  getUint16(offset?: number): number
+  getInt16(offset?: number): number
+  getUint32(offset?: number): number
+  getInt32(offset?: number): number
+  getBigUint64(offset?: number): bigint
+  getBigInt64(offset?: number): bigint
+  getFloat32(offset?: number): number
+  getFloat64(offset?: number): number
+  getPointer(offset?: number): PointerValue
+  
+  getCString(offset?: number): string
+  getArrayBuffer(byteLength: number, offset?: number): ArrayBuffer
+  copyInto(destination: BufferSource, offset?: number): number
+}
+```
+
+**Example:**
+
+```typescript
+const library = Deno.dlopen("./lib.so", {
+  get_string: { parameters: [], result: "pointer" },
+} as const);
+
+const ptr = library.symbols.get_string();
+const view = new Deno.UnsafePointerView(ptr);
+const str = view.getCString();
+console.log(str);
+```
+
+## Callbacks
+
+### Deno.UnsafeCallback
+
+Creates a callback that can be passed to native code.
+
+```typescript
+class UnsafeCallback<Definition extends ForeignFunction> {
+  constructor(
+    definition: Definition,
+    callback: (...args: FromForeignType<Definition["parameters"]>) =>
+      ToForeignType<Definition["result"]>
+  )
+  
+  readonly pointer: PointerValue
+  readonly definition: Definition
+  
+  ref(): void
+  unref(): void
+  close(): void
+}
+```
+
+**Example:**
+
+```typescript
+const library = Deno.dlopen("./lib.so", {
+  register_callback: {
+    parameters: ["function"],
+    result: "void",
+  },
+} as const);
+
+// Create a callback
+const callback = new Deno.UnsafeCallback(
+  {
+    parameters: ["i32"],
+    result: "void",
+  },
+  (value: number) => {
+    console.log("Callback received:", value);
+  }
+);
+
+// Pass callback to native code
+library.symbols.register_callback(callback.pointer);
+
+// Keep callback alive
+callback.ref();
+
+// Later, cleanup
+callback.close();
+```
+
+## Memory Management
+
+### Allocating Memory
+
+```typescript
+// Allocate memory for a struct or data
+const size = 1024;
+const buffer = new Uint8Array(size);
+const pointer = Deno.UnsafePointer.of(buffer);
+
+library.symbols.fill_buffer(pointer, size);
+
+// Read the data
+const view = new Deno.UnsafePointerView(pointer);
+const data = view.getArrayBuffer(size);
+```
+
+### Working with Strings
+
+```typescript
+// Pass string to C
+const str = "Hello, C!";
+const encoder = new TextEncoder();
+const bytes = encoder.encode(str + "\0"); // Null-terminated
+const pointer = Deno.UnsafePointer.of(bytes);
+
+library.symbols.print_string(pointer);
+
+// Get string from C
+const resultPtr = library.symbols.get_message();
+const view = new Deno.UnsafePointerView(resultPtr);
+const message = view.getCString();
+console.log(message);
+```
+
+## Complete Examples
+
+### Simple Math Library
+
+**C code (libmath.c):**
+
+```c
+int add(int a, int b) {
+  return a + b;
+}
+
+double multiply(double a, double b) {
+  return a * b;
+}
+```
+
+Compile:
+```bash
+gcc -shared -fPIC -o libmath.so libmath.c
+```
+
+**Deno code:**
+
+```typescript
+const libmath = Deno.dlopen("./libmath.so", {
+  add: { parameters: ["i32", "i32"], result: "i32" },
+  multiply: { parameters: ["f64", "f64"], result: "f64" },
+} as const);
+
+console.log(libmath.symbols.add(5, 3)); // 8
+console.log(libmath.symbols.multiply(2.5, 4.0)); // 10.0
+
+libmath.close();
+```
+
+### Working with Structures
+
+**C code:**
+
+```c
+typedef struct {
+  int x;
+  int y;
+} Point;
+
+Point create_point(int x, int y) {
+  Point p = {x, y};
+  return p;
+}
+
+int distance_squared(Point* p1, Point* p2) {
+  int dx = p2->x - p1->x;
+  int dy = p2->y - p1->y;
+  return dx*dx + dy*dy;
+}
+```
+
+**Deno code:**
+
+```typescript
+const lib = Deno.dlopen("./libpoint.so", {
+  create_point: { parameters: ["i32", "i32"], result: "pointer" },
+  distance_squared: { parameters: ["pointer", "pointer"], result: "i32" },
+} as const);
+
+// Create points
+const p1Buffer = new Uint8Array(8); // 2 * sizeof(int)
+const p1View = new DataView(p1Buffer.buffer);
+p1View.setInt32(0, 0, true); // x = 0
+p1View.setInt32(4, 0, true); // y = 0
+
+const p2Buffer = new Uint8Array(8);
+const p2View = new DataView(p2Buffer.buffer);
+p2View.setInt32(0, 3, true); // x = 3
+p2View.setInt32(4, 4, true); // y = 4
+
+const p1 = Deno.UnsafePointer.of(p1Buffer);
+const p2 = Deno.UnsafePointer.of(p2Buffer);
+
+const dist2 = lib.symbols.distance_squared(p1, p2);
+console.log(dist2); // 25 (3^2 + 4^2)
+
+lib.close();
+```
+
+### Async/Non-blocking Calls
+
+```typescript
+const lib = Deno.dlopen("./lib.so", {
+  slow_operation: {
+    parameters: ["i32"],
+    result: "i32",
+    nonblocking: true,  // Important!
+  },
+} as const);
+
+// This won't block the event loop
+const result = await lib.symbols.slow_operation(42);
+console.log(result);
+
+lib.close();
+```
+
+## Platform-Specific Libraries
+
+```typescript
+const libPath = {
+  darwin: "./lib.dylib",
+  linux: "./lib.so",
+  windows: "./lib.dll",
+}[Deno.build.os];
+
+const lib = Deno.dlopen(libPath, {
+  // symbol definitions
+} as const);
+```
+
+## Error Handling
+
+```typescript
+try {
+  const lib = Deno.dlopen("./nonexistent.so", {});
+} catch (error) {
+  if (error instanceof Deno.errors.NotFound) {
+    console.error("Library not found");
+  } else {
+    console.error("Failed to load library:", error);
+  }
+}
+```
+
+## Best Practices
+
+1. **Always close libraries**: Call `.close()` when done to free resources
+2. **Use `as const`**: Define symbols with `as const` for better type inference
+3. **Handle null pointers**: Check for null when working with pointers
+4. **Keep buffers alive**: Ensure buffers remain in scope while native code accesses them
+5. **Use non-blocking for slow operations**: Set `nonblocking: true` for operations that take time
+6. **Test thoroughly**: FFI code can crash the Deno process if used incorrectly
+7. **Document types**: Clearly document the C types and their Deno equivalents
+8. **Platform compatibility**: Test on all target platforms (Linux, macOS, Windows)
+
+## Permissions
+
+FFI requires the `--allow-ffi` permission:
+
+```bash
+# Allow all FFI
+deno run --allow-ffi script.ts
+
+# Allow specific library
+deno run --allow-ffi=./libexample.so script.ts
+```
+
+**Warning:** `--allow-ffi` effectively grants full system access as native code can bypass Deno's security sandbox.

@@ -1,0 +1,210 @@
+---
+title: deno install
+description: Install dependencies or executable scripts
+---
+
+The `deno install` command installs dependencies for a project or installs executable scripts globally.
+
+## Usage
+
+```bash
+# Install project dependencies
+deno install
+
+# Install specific entrypoints
+deno install [ENTRYPOINTS]...
+
+# Install globally with -g flag
+deno install -g [OPTIONS] [MODULE_URL]
+```
+
+## Local Installation
+
+### Install all dependencies
+
+Install all dependencies from `deno.json` and `package.json`:
+
+```bash
+deno install
+```
+
+<ParamField path="--lockfile-only" type="boolean">
+  Only update the lockfile without installing packages
+</ParamField>
+
+### Install specific entrypoints
+
+Cache specific modules and their dependencies:
+
+```bash
+deno install main.ts
+deno install src/server.ts src/worker.ts
+```
+
+## Global Installation
+
+Install executable scripts globally using the `-g` or `--global` flag.
+
+```bash
+deno install -g [OPTIONS] [MODULE_URL]
+```
+
+### Global Installation Flags
+
+<ParamField path="-g, --global" type="boolean">
+  Install as a global executable script
+</ParamField>
+
+<ParamField path="-n, --name" type="string">
+  Executable file name
+</ParamField>
+
+<ParamField path="--root" type="string">
+  Installation root directory (defaults to $HOME/.deno)
+</ParamField>
+
+<ParamField path="-f, --force" type="boolean">
+  Forcefully overwrite existing installation
+</ParamField>
+
+<ParamField path="--compile" type="boolean">
+  Compile the script into a standalone executable
+</ParamField>
+
+### Permission flags
+
+When installing globally, you can specify permissions that will be embedded in the installed script:
+
+<ParamField path="--allow-read" type="string">
+  Allow file system read access
+</ParamField>
+
+<ParamField path="--allow-write" type="string">
+  Allow file system write access
+</ParamField>
+
+<ParamField path="--allow-net" type="string">
+  Allow network access
+</ParamField>
+
+<ParamField path="--allow-env" type="string">
+  Allow environment access
+</ParamField>
+
+<ParamField path="--allow-run" type="string">
+  Allow running subprocesses
+</ParamField>
+
+<ParamField path="--allow-sys" type="string">
+  Allow access to system information
+</ParamField>
+
+<ParamField path="--allow-all" type="boolean">
+  Allow all permissions
+</ParamField>
+
+## Examples
+
+### Local installation examples
+
+#### Install all dependencies
+
+```bash
+deno install
+```
+
+#### Install with lockfile update only
+
+```bash
+deno install --lockfile-only
+```
+
+#### Install specific entrypoints
+
+```bash
+deno install main.ts
+deno install src/app.ts src/cli.ts
+```
+
+### Global installation examples
+
+#### Install a script globally
+
+```bash
+deno install -g --allow-net --allow-read jsr:@std/http/file-server
+```
+
+#### Install with custom name
+
+```bash
+deno install -g -n serve --allow-net --allow-read jsr:@std/http/file-server
+```
+
+#### Install from URL
+
+```bash
+deno install -g --allow-net https://deno.land/std/http/file_server.ts
+```
+
+#### Install with all permissions
+
+```bash
+deno install -g --allow-all https://deno.land/x/deploy/deployctl.ts
+```
+
+#### Install to custom location
+
+```bash
+deno install -g --root /usr/local --allow-net my_server.ts
+```
+
+#### Force reinstall
+
+Overwrite existing installation:
+
+```bash
+deno install -g -f --allow-net --allow-read jsr:@std/http/file-server
+```
+
+#### Install as compiled executable
+
+Create a standalone binary:
+
+```bash
+deno install -g --compile --allow-net my_app.ts
+```
+
+#### Install with script arguments
+
+```bash
+deno install -g --allow-read my_tool.ts -- --port 8080
+```
+
+## Installation Directory
+
+Global installations are placed in:
+- Default: `$HOME/.deno/bin`
+- Custom: Specified by `--root` flag or `DENO_INSTALL_ROOT` environment variable
+
+Make sure this directory is in your `PATH`:
+
+```bash
+# Add to your shell profile (.bashrc, .zshrc, etc.)
+export PATH="$HOME/.deno/bin:$PATH"
+```
+
+## Migration from Deno < 3.0
+
+In Deno 3.0, the `deno install` command behavior changed:
+
+- Use `-g` flag for global installation (previously the default)
+- Script arguments now require `--` separator
+- Local installation is now the default when `-g` is not specified
+
+```bash
+# Old (Deno < 3.0)
+deno install --allow-net https://deno.land/std/http/file_server.ts arg1 arg2
+
+# New (Deno >= 3.0)
+deno install -g --allow-net https://deno.land/std/http/file_server.ts -- arg1 arg2
+```

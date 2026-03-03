@@ -1,0 +1,475 @@
+---
+title: HTTP Extension (deno_http)
+description: High-performance HTTP/1.1 and HTTP/2 server implementation
+---
+
+The `deno_http` extension provides a fast, standards-compliant HTTP server implementation supporting HTTP/1.1, HTTP/2, and WebSocket upgrades.
+
+## Location
+
+`ext/http/`
+
+## What It Provides
+
+### HTTP Server
+
+Create HTTP servers with `Deno.serve()`:
+
+```javascript
+// Basic HTTP server
+Deno.serve((req) => {
+  return new Response("Hello, World!");
+});
+
+// Custom port and hostname
+Deno.serve({
+  port: 8080,
+  hostname: "0.0.0.0",
+}, (req) => {
+  return new Response("Server running on port 8080");
+});
+
+// HTTPS server
+Deno.serve({
+  port: 443,
+  cert: await Deno.readTextFile("./cert.pem"),
+  key: await Deno.readTextFile("./key.pem"),
+}, (req) => {
+  return new Response("Secure connection");
+});
+```
+
+### Request Handling
+
+Access request information:
+
+```javascript
+Deno.serve((req) => {
+  const url = new URL(req.url);
+  const method = req.method;
+  const headers = req.headers;
+  
+  console.log(`${method} ${url.pathname}`);
+  
+  // Read request body
+  const body = await req.text();
+  
+  return new Response(`You sent: ${body}`);
+});
+```
+
+### Response Types
+
+Return various response types:
+
+```javascript
+Deno.serve((req) => {
+  const url = new URL(req.url);
+  
+  // Text response
+  if (url.pathname === "/text") {
+    return new Response("Plain text", {
+      headers: { "Content-Type": "text/plain" },
+    });
+  }
+  
+  // JSON response
+  if (url.pathname === "/json") {
+    return Response.json({ message: "Hello" });
+  }
+  
+  // HTML response
+  if (url.pathname === "/html") {
+    return new Response("<h1>Hello</h1>", {
+      headers: { "Content-Type": "text/html" },
+    });
+  }
+  
+  // Binary response
+  if (url.pathname === "/binary") {
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    return new Response(bytes, {
+      headers: { "Content-Type": "application/octet-stream" },
+    });
+  }
+  
+  // Stream response
+  if (url.pathname === "/stream") {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue("chunk 1\n");
+        controller.enqueue("chunk 2\n");
+        controller.close();
+      },
+    });
+    return new Response(stream);
+  }
+  
+  return new Response("Not Found", { status: 404 });
+});
+```
+
+### Streaming Responses
+
+Stream data to clients:
+
+```javascript
+Deno.serve((req) => {
+  const stream = new ReadableStream({
+    async start(controller) {
+      for (let i = 0; i < 10; i++) {
+        controller.enqueue(
+          new TextEncoder().encode(`Event ${i}\n`)
+        );
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      controller.close();
+    },
+  });
+  
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+    },
+  });
+});
+```
+
+### File Serving
+
+Serve static files:
+
+```javascript
+Deno.serve(async (req) => {
+  const url = new URL(req.url);
+  const filepath = `./public${url.pathname}`;
+  
+  try {
+    const file = await Deno.open(filepath, { read: true });
+    return new Response(file.readable);
+  } catch {
+    return new Response("Not Found", { status: 404 });
+  }
+});
+```
+
+### WebSocket Upgrade
+
+Upgrade HTTP connections to WebSocket:
+
+```javascript
+Deno.serve((req) => {
+  if (req.headers.get("upgrade") === "websocket") {
+    const { socket, response } = Deno.upgradeWebSocket(req);
+    
+    socket.onopen = () => console.log("Client connected");
+    socket.onmessage = (e) => {
+      socket.send(`Echo: ${e.data}`);
+    };
+    socket.onclose = () => console.log("Client disconnected");
+    
+    return response;
+  }
+  
+  return new Response("WebSocket endpoint");
+});
+```
+
+### Request Routing
+
+Route requests based on URL patterns:
+
+```javascript
+Deno.serve((req) => {
+  const url = new URL(req.url);
+  const { pathname } = url;
+  
+  // Route matching
+  if (pathname === "/") {
+    return new Response("Home");
+  }
+  
+  if (pathname.startsWith("/api/")) {
+    return handleApi(req);
+  }
+  
+  if (pathname.match(/^\/users\/\d+$/)) {
+    const userId = pathname.split("/")[2];
+    return new Response(`User ${userId}`);
+  }
+  
+  return new Response("Not Found", { status: 404 });
+});
+```
+
+### Middleware Pattern
+
+Implement middleware:
+
+```javascript
+function logger(handler) {
+  return (req) => {
+    const start = Date.now();
+    const response = handler(req);
+    const duration = Date.now() - start;
+    console.log(`${req.method} ${req.url} - ${duration}ms`);
+    return response;
+  };
+}
+
+function auth(handler) {
+  return (req) => {
+    const token = req.headers.get("Authorization");
+    if (!token) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    return handler(req);
+  };
+}
+
+const handler = logger(auth((req) => {
+  return new Response("Protected resource");
+}));
+
+Deno.serve(handler);
+```
+
+### Server Sent Events (SSE)
+
+Implement server-sent events:
+
+```javascript
+Deno.serve((req) => {
+  const stream = new ReadableStream({
+    start(controller) {
+      const encoder = new TextEncoder();
+      
+      const interval = setInterval(() => {
+        const data = `data: ${JSON.stringify({ time: Date.now() })}\n\n`;
+        controller.enqueue(encoder.encode(data));
+      }, 1000);
+      
+      // Cleanup on close
+      req.signal.addEventListener("abort", () => {
+        clearInterval(interval);
+        controller.close();
+      });
+    },
+  });
+  
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  });
+});
+```
+
+### Compression
+
+Automatic response compression:
+
+```javascript
+// The server automatically compresses responses when:
+// - Client sends Accept-Encoding: gzip or br
+// - Response is compressible (text/html, application/json, etc.)
+// - Response size is > 20 bytes
+
+Deno.serve((req) => {
+  // This response will be automatically compressed if applicable
+  return new Response("A".repeat(1000), {
+    headers: { "Content-Type": "text/plain" },
+  });
+});
+```
+
+## Protocol Support
+
+### HTTP/1.1
+
+Full HTTP/1.1 support including:
+
+- Persistent connections
+- Chunked transfer encoding
+- Pipelining
+- Range requests
+
+### HTTP/2
+
+HTTP/2 features:
+
+- Multiplexing
+- Server push (when enabled)
+- Header compression (HPACK)
+- Stream prioritization
+
+```javascript
+Deno.serve({
+  // HTTP/2 is automatically negotiated via ALPN
+  cert: await Deno.readTextFile("./cert.pem"),
+  key: await Deno.readTextFile("./key.pem"),
+}, handler);
+```
+
+## Key Operations
+
+Rust operations exposed to JavaScript:
+
+```rust
+op_http_serve                    // Start HTTP server
+op_http_wait                     // Wait for requests
+op_http_set_response_body_text   // Set text response
+op_http_set_response_body_bytes  // Set binary response
+op_http_set_response_header      // Set response header
+op_http_upgrade_websocket_next   // Upgrade to WebSocket
+op_http_read_request_body        // Read request body
+```
+
+## Implementation Details
+
+### Extension Definition
+
+```rust:ext/http/lib.rs
+deno_core::extension!(
+  deno_http,
+  deps = [deno_web, deno_net, deno_fetch, deno_websocket],
+  ops = [
+    http_next::op_http_serve,
+    http_next::op_http_wait,
+    http_next::op_http_set_response_header,
+    http_next::op_http_set_response_body_text,
+    http_next::op_http_upgrade_websocket_next,
+    // ... many more
+  ],
+  esm = ["00_serve.ts", "01_http.js"],
+  options = {
+    options: Options,
+  }
+);
+```
+
+### Built on Hyper
+
+Uses the Hyper HTTP library:
+
+```rust
+use hyper::server::conn::http1;
+use hyper::server::conn::http2;
+```
+
+Features:
+- Zero-copy I/O
+- Efficient connection pooling
+- Automatic protocol negotiation
+- Built-in HTTP/2 support
+
+### Automatic Compression
+
+Transparent compression middleware:
+
+```rust
+// Compresses responses with gzip or brotli
+// Based on Accept-Encoding header
+// Only for compressible content types
+let compressing = accepts_compression
+  && should_compress(headers);
+```
+
+Compression is applied when:
+- Client supports it (Accept-Encoding)
+- Content-Type is compressible
+- Response size > 20 bytes
+- No Content-Encoding already set
+
+### Connection Lifecycle
+
+1. Accept TCP connection
+2. Perform TLS handshake (if HTTPS)
+3. Negotiate HTTP version (HTTP/1.1 or HTTP/2)
+4. Serve requests
+5. Keep connection alive or close based on headers
+
+### Resource Management
+
+HTTP resources:
+
+```rust
+HttpConnResource        // HTTP connection
+HttpStreamReadResource  // Request body stream
+HttpStreamWriteResource // Response body stream
+```
+
+## Performance Features
+
+### Zero-Copy I/O
+
+Direct buffer transfers:
+
+```rust
+// Avoids unnecessary copying
+let buf = resource.read(64 * 1024).await?;
+```
+
+### Connection Pooling
+
+Reuses connections:
+
+```rust
+// Connections stay alive between requests
+let conn_fut = Http::new()
+  .serve_connection(io, service)
+  .with_upgrades();
+```
+
+### Async I/O
+
+Non-blocking operations:
+
+```javascript
+// Handler can be async
+Deno.serve(async (req) => {
+  const data = await fetchData();
+  return Response.json(data);
+});
+```
+
+## OpenTelemetry Integration
+
+Built-in metrics collection:
+
+- Request duration histogram
+- Active requests counter
+- Request/response body size histograms
+- HTTP status codes
+
+Metrics automatically exported when OpenTelemetry is configured.
+
+## File Structure
+
+```
+ext/http/
+├── lib.rs                  # Extension definition
+├── http_next.rs            # Next-gen HTTP implementation
+├── compressible.rs         # Compression logic
+├── request_properties.rs   # Request metadata
+├── response_body.rs        # Response body handling
+├── 00_serve.ts             # Deno.serve API
+└── 01_http.js              # Legacy HTTP APIs
+```
+
+## Standards Compliance
+
+Implements:
+
+- [HTTP/1.1 (RFC 7230-7235)](https://tools.ietf.org/html/rfc7230)
+- [HTTP/2 (RFC 7540)](https://tools.ietf.org/html/rfc7540)
+- [Fetch API](https://fetch.spec.whatwg.org/)
+
+## See Also
+
+- [Fetch Extension](/api/extensions/fetch) - HTTP client
+- [WebSocket Extension](/api/extensions/websocket) - WebSocket protocol
+- [Web Extension](/api/extensions/web) - Base types

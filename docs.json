@@ -1,122 +1,177 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Deno",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#70FFAF",
+    "light": "#9EFFC9",
+    "dark": "#00D673"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/denoland/deno"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/denoland/deno",
+      "twitter": "https://twitter.com/deno_land",
+      "discord": "https://discord.gg/deno"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
+              "introduction",
+              "installation",
               "quickstart",
-              "development"
+              "first-steps"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/runtime",
+              "concepts/permissions",
+              "concepts/modules",
+              "concepts/typescript",
+              "concepts/web-standards"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Command Reference",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "commands/overview",
+              "commands/run",
+              "commands/test",
+              "commands/bench",
+              "commands/fmt",
+              "commands/lint",
+              "commands/compile",
+              "commands/bundle",
+              "commands/doc",
+              "commands/info",
+              "commands/cache",
+              "commands/check",
+              "commands/coverage",
+              "commands/init",
+              "commands/install",
+              "commands/uninstall",
+              "commands/repl",
+              "commands/serve",
+              "commands/task",
+              "commands/upgrade",
+              "commands/jupyter",
+              "commands/publish",
+              "commands/add",
+              "commands/remove"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Guides",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "guides/configuration",
+              "guides/imports",
+              "guides/package-management",
+              "guides/npm-compatibility",
+              "guides/node-compatibility",
+              "guides/environment-variables",
+              "guides/debugging",
+              "guides/testing",
+              "guides/benchmarking",
+              "guides/linting-formatting",
+              "guides/deploying"
+            ]
+          },
+          {
+            "group": "Standard Library",
+            "pages": [
+              "stdlib/overview",
+              "stdlib/using-stdlib",
+              "stdlib/jsr-integration"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Runtime APIs",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
             "pages": [
-              "api-reference/introduction"
+              "api/overview",
+              "api/web-platform-apis"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Deno Namespace",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/deno/file-system",
+              "api/deno/network",
+              "api/deno/processes",
+              "api/deno/permissions",
+              "api/deno/signals",
+              "api/deno/ffi",
+              "api/deno/kv",
+              "api/deno/cron",
+              "api/deno/testing",
+              "api/deno/errors"
+            ]
+          },
+          {
+            "group": "Extensions",
+            "pages": [
+              "api/extensions/overview",
+              "api/extensions/web",
+              "api/extensions/fetch",
+              "api/extensions/websocket",
+              "api/extensions/crypto",
+              "api/extensions/http",
+              "api/extensions/webgpu",
+              "api/extensions/broadcast-channel",
+              "api/extensions/webstorage"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "groups": [
+          {
+            "group": "Get Involved",
+            "pages": [
+              "contributing/overview",
+              "contributing/building-from-source",
+              "contributing/development-guide",
+              "contributing/architecture"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "contributing/code-structure",
+              "contributing/runtime-internals",
+              "contributing/extensions",
+              "contributing/testing",
+              "contributing/debugging"
+            ]
+          },
+          {
+            "group": "Guidelines",
+            "pages": [
+              "contributing/style-guide",
+              "contributing/submitting-changes",
+              "contributing/release-process"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

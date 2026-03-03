@@ -1,0 +1,217 @@
+---
+title: WebGPU extension
+description: GPU acceleration and graphics programming with WebGPU
+---
+
+# WebGPU extension
+
+The WebGPU extension (`ext/webgpu/`) implements the [WebGPU API specification](https://gpuweb.github.io/gpuweb/) in Deno, enabling hardware-accelerated graphics and compute capabilities through the GPU.
+
+## Overview
+
+WebGPU is a modern graphics and compute API that provides access to GPU capabilities in a cross-platform way. Deno's implementation is built on top of [wgpu](https://github.com/gfx-rs/wgpu), Mozilla's safe, portable GPU abstraction library written in Rust.
+
+<Info>
+The WebGPU spec is still in development. Deno's implementation targets the spec draft as of March 31, 2024, and is updated regularly as the specification evolves.
+</Info>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="GPU compute" icon="microchip">
+    Run high-performance compute workloads on the GPU
+  </Card>
+  <Card title="3D graphics" icon="cube">
+    Render 3D graphics and visualizations
+  </Card>
+  <Card title="Cross-platform" icon="globe">
+    Works across different operating systems and GPU vendors
+  </Card>
+  <Card title="Safe by default" icon="shield-check">
+    Built on wgpu for memory safety and portability
+  </Card>
+</CardGroup>
+
+## Basic usage
+
+### Requesting a GPU adapter
+
+```typescript
+// Request a GPU adapter
+const adapter = await navigator.gpu.requestAdapter();
+if (!adapter) {
+  throw new Error("No GPU adapter found");
+}
+
+console.log("GPU adapter:", adapter);
+```
+
+### Creating a device
+
+```typescript
+const adapter = await navigator.gpu.requestAdapter();
+const device = await adapter.requestDevice();
+
+console.log("GPU device:", device);
+console.log("Limits:", device.limits);
+console.log("Features:", Array.from(device.features));
+```
+
+### GPU compute example
+
+```typescript
+const adapter = await navigator.gpu.requestAdapter();
+const device = await adapter.requestDevice();
+
+// Create a compute shader
+const shaderCode = `
+  @group(0) @binding(0) var<storage, read_write> data: array<f32>;
+  
+  @compute @workgroup_size(64)
+  fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    data[global_id.x] = data[global_id.x] * 2.0;
+  }
+`;
+
+const shaderModule = device.createShaderModule({
+  code: shaderCode,
+});
+
+// Create a buffer
+const buffer = device.createBuffer({
+  size: 256,
+  usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+});
+
+// Create bind group layout
+const bindGroupLayout = device.createBindGroupLayout({
+  entries: [{
+    binding: 0,
+    visibility: GPUShaderStage.COMPUTE,
+    buffer: { type: "storage" },
+  }],
+});
+
+// Create pipeline
+const pipeline = device.createComputePipeline({
+  layout: device.createPipelineLayout({
+    bindGroupLayouts: [bindGroupLayout],
+  }),
+  compute: {
+    module: shaderModule,
+    entryPoint: "main",
+  },
+});
+
+// Create bind group
+const bindGroup = device.createBindGroup({
+  layout: bindGroupLayout,
+  entries: [{
+    binding: 0,
+    resource: { buffer },
+  }],
+});
+
+// Execute compute shader
+const commandEncoder = device.createCommandEncoder();
+const passEncoder = commandEncoder.beginComputePass();
+passEncoder.setPipeline(pipeline);
+passEncoder.setBindGroup(0, bindGroup);
+passEncoder.dispatchWorkgroups(4);
+passEncoder.end();
+
+device.queue.submit([commandEncoder.finish()]);
+```
+
+## WebGPU API components
+
+The extension implements the full WebGPU specification, including:
+
+### Core interfaces
+
+- **`navigator.gpu`** - Entry point for WebGPU
+- **`GPUAdapter`** - Represents a GPU adapter
+- **`GPUDevice`** - Represents a logical GPU device
+- **`GPUQueue`** - Command submission queue
+
+### Resources
+
+- **`GPUBuffer`** - GPU-accessible data storage
+- **`GPUTexture`** - Image data storage
+- **`GPUSampler`** - Texture sampling configuration
+
+### Shaders and pipelines
+
+- **`GPUShaderModule`** - Compiled shader code
+- **`GPURenderPipeline`** - Graphics rendering pipeline
+- **`GPUComputePipeline`** - Compute shader pipeline
+
+### Command encoding
+
+- **`GPUCommandEncoder`** - Records GPU commands
+- **`GPURenderPassEncoder`** - Records rendering commands
+- **`GPUComputePassEncoder`** - Records compute commands
+- **`GPURenderBundle`** - Pre-recorded rendering commands
+
+### Binding resources
+
+- **`GPUBindGroupLayout`** - Describes resource binding layout
+- **`GPUBindGroup`** - Binds resources to a pipeline
+- **`GPUPipelineLayout`** - Complete pipeline resource layout
+
+### Query and synchronization
+
+- **`GPUQuerySet`** - Performance queries
+- **`GPUFence`** - GPU synchronization (deprecated in favor of promises)
+
+## Debugging
+
+<Note>
+Set the `DENO_WEBGPU_TRACE` environment variable to output a [wgpu trace](https://github.com/gfx-rs/wgpu/wiki/Debugging-wgpu-Applications#tracing-infrastructure) to a specified directory for debugging.
+</Note>
+
+```bash
+export DENO_WEBGPU_TRACE=./webgpu-trace
+deno run --allow-env --unstable-webgpu your-script.ts
+```
+
+## Testing
+
+Deno's WebGPU implementation is tested using:
+
+- [WebGPU Conformance Test Suite (CTS)](https://github.com/gpuweb/cts)
+- wgpu's [`cts_runner`](https://github.com/gfx-rs/wgpu/blob/trunk/README.md#webgpu-conformance-test-suite)
+- [Directed tests](https://github.com/gfx-rs/wgpu/tree/trunk/cts_runner/tests) for missing coverage
+
+<Warning>
+GPU availability in CI environments is limited. Some test configurations rely on software renderers like DirectX WARP and Vulkan lavapipe.
+</Warning>
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="WebGPU specification" icon="book" href="https://gpuweb.github.io/gpuweb/">
+    Official WebGPU API specification
+  </Card>
+  <Card title="Design documents" icon="file-lines" href="https://github.com/gpuweb/gpuweb/tree/main/design">
+    WebGPU design documentation
+  </Card>
+  <Card title="Conformance tests" icon="vial" href="https://github.com/gpuweb/cts">
+    WebGPU CTS test suite
+  </Card>
+  <Card title="WebGPU examples" icon="code" href="https://github.com/crowlKats/webgpu-examples">
+    WebGPU examples for Deno
+  </Card>
+</CardGroup>
+
+## Community
+
+For help with WebGPU development:
+
+- wgpu-users Matrix channel: https://matrix.to/#/#wgpu-users:matrix.org
+- Deno Discord: https://discord.gg/deno
+
+## Related documentation
+
+- [Extensions overview](/api/extensions/overview)
+- [Web extension](/api/extensions/web)

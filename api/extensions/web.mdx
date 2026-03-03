@@ -1,0 +1,283 @@
+---
+title: Web Extension (deno_web)
+description: Core web platform APIs including streams, encoding, text processing, and more
+---
+
+The `deno_web` extension provides foundational web platform APIs that other extensions build upon. It implements standards like Streams, TextEncoder/TextDecoder, Blob, File, and more.
+
+## Location
+
+`ext/web/`
+
+## What It Provides
+
+### Text Encoding
+
+- **TextEncoder** - Encodes strings to UTF-8 bytes
+- **TextDecoder** - Decodes bytes to strings with various encodings
+- **Base64** encoding and decoding (atob/btoa)
+
+```javascript
+// Encode text to UTF-8
+const encoder = new TextEncoder();
+const bytes = encoder.encode("Hello, Deno!");
+
+// Decode bytes to text
+const decoder = new TextDecoder();
+const text = decoder.decode(bytes);
+
+// Base64 encoding
+const encoded = btoa("Hello");
+const decoded = atob(encoded);
+```
+
+### Streams API
+
+Implements the WHATWG Streams standard:
+
+- `ReadableStream` - For reading data
+- `WritableStream` - For writing data
+- `TransformStream` - For transforming data
+
+```javascript
+const stream = new ReadableStream({
+  start(controller) {
+    controller.enqueue("chunk 1");
+    controller.enqueue("chunk 2");
+    controller.close();
+  }
+});
+
+const reader = stream.getReader();
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  console.log(value);
+}
+```
+
+### Blob and File
+
+Binary data handling:
+
+```javascript
+// Create a Blob
+const blob = new Blob(["Hello, ", "World!"], { type: "text/plain" });
+
+// Read Blob contents
+const text = await blob.text();
+const arrayBuffer = await blob.arrayBuffer();
+
+// Create object URLs
+const url = URL.createObjectURL(blob);
+URL.revokeObjectURL(url);
+```
+
+### Events
+
+- `Event` - Base event class
+- `CustomEvent` - Custom events with detail
+- `EventTarget` - Event dispatching
+- `AbortSignal` / `AbortController` - Cancellation
+
+```javascript
+const controller = new AbortController();
+const signal = controller.signal;
+
+signal.addEventListener("abort", () => {
+  console.log("Operation aborted");
+});
+
+controller.abort();
+```
+
+### Timers
+
+Standard timer functions:
+
+- `setTimeout` / `clearTimeout`
+- `setInterval` / `clearInterval`
+- `queueMicrotask`
+- `performance.now()` - High-resolution timestamps
+
+```javascript
+const start = performance.now();
+
+setTimeout(() => {
+  const elapsed = performance.now() - start;
+  console.log(`Elapsed: ${elapsed}ms`);
+}, 100);
+```
+
+### Compression
+
+Compression and decompression streams:
+
+- `CompressionStream` - gzip, deflate
+- `DecompressionStream` - gzip, deflate
+
+```javascript
+const stream = new ReadableStream(/* ... */);
+const compressed = stream.pipeThrough(
+  new CompressionStream("gzip")
+);
+```
+
+### URL Processing
+
+- URL parsing and manipulation
+- URLSearchParams
+- URLPattern (for URL pattern matching)
+
+```javascript
+const url = new URL("https://deno.land/x/mod.ts?v=1");
+console.log(url.hostname); // "deno.land"
+console.log(url.searchParams.get("v")); // "1"
+
+// URL pattern matching
+const pattern = new URLPattern({ pathname: "/api/:id" });
+const match = pattern.exec("https://example.com/api/123");
+console.log(match.pathname.groups.id); // "123"
+```
+
+### Message Ports
+
+Cross-context communication:
+
+```javascript
+const channel = new MessageChannel();
+
+channel.port1.onmessage = (event) => {
+  console.log("Received:", event.data);
+};
+
+channel.port2.postMessage("Hello!");
+```
+
+## Key Operations
+
+The extension exposes these Rust operations to JavaScript:
+
+### Encoding Operations
+
+```rust
+op_base64_decode      // Decode base64 strings
+op_base64_encode      // Encode to base64
+op_encoding_decode    // Decode text with various encodings
+op_encoding_encode_into // Encode text to bytes
+```
+
+### Blob Operations
+
+```rust
+op_blob_create_part         // Create blob part
+op_blob_read_part           // Read blob data
+op_blob_create_object_url   // Create blob: URL
+op_blob_revoke_object_url   // Revoke blob: URL
+```
+
+### Stream Operations
+
+```rust
+op_readable_stream_resource_allocate  // Create readable stream
+op_readable_stream_resource_write_buf // Write to stream
+op_readable_stream_resource_close     // Close stream
+```
+
+## Implementation Details
+
+### Extension Definition
+
+```rust:ext/web/lib.rs
+deno_core::extension!(deno_web,
+  deps = [ deno_webidl ],
+  ops = [
+    op_base64_decode,
+    op_base64_encode,
+    op_encoding_decode,
+    op_blob_create_part,
+    // ... many more
+  ],
+  esm = [
+    "00_infra.js",
+    "02_event.js",
+    "02_structured_clone.js",
+    "06_streams.js",
+    "08_text_encoding.js",
+    "09_file.js",
+    // ...
+  ],
+  options = {
+    blob_store: Arc<BlobStore>,
+    maybe_location: Option<Url>,
+  }
+);
+```
+
+### Blob Storage
+
+Blobs are stored in a shared `BlobStore` for efficient memory management:
+
+```rust
+pub struct BlobStore {
+  // Maps blob IDs to their data
+  parts: HashMap<Uuid, Vec<u8>>,
+}
+```
+
+### Performance Optimizations
+
+- Fast paths for UTF-8 encoding/decoding
+- SIMD-accelerated base64 operations
+- Zero-copy buffer handling where possible
+- Efficient streaming with backpressure
+
+## Dependencies
+
+- `deno_webidl` - WebIDL type conversions
+- External crates:
+  - `encoding_rs` - Character encoding
+  - `base64-simd` - Fast base64
+  - `url` - URL parsing
+
+## File Structure
+
+```
+ext/web/
+├── lib.rs              # Extension definition and ops
+├── blob.rs             # Blob implementation
+├── compression.rs      # Compression streams
+├── message_port.rs     # MessagePort/Channel
+├── stream_resource.rs  # Stream resources
+├── timers.rs          # Timer operations
+├── url.rs             # URL operations
+├── urlpattern.rs      # URLPattern
+├── 00_infra.js        # Core infrastructure
+├── 02_event.js        # Event system
+├── 06_streams.js      # Streams API
+├── 08_text_encoding.js # TextEncoder/Decoder
+└── ...
+```
+
+## Testing
+
+The extension is tested through:
+
+- Unit tests in Rust code
+- Integration tests in `cli/tests/`
+- Web Platform Tests (WPT) in `tests/wpt/`
+
+## Standards Compliance
+
+Implements these web standards:
+
+- [Encoding Living Standard](https://encoding.spec.whatwg.org/)
+- [Streams Living Standard](https://streams.spec.whatwg.org/)
+- [File API](https://w3c.github.io/FileAPI/)
+- [URL Living Standard](https://url.spec.whatwg.org/)
+- [DOM Standard](https://dom.spec.whatwg.org/) (events)
+
+## See Also
+
+- [Fetch Extension](/api/extensions/fetch) - Builds on web APIs
+- [WebSocket Extension](/api/extensions/websocket) - Uses streams and events

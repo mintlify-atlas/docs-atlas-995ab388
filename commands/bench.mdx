@@ -1,0 +1,254 @@
+---
+title: deno bench
+description: Run benchmarks to measure code performance
+---
+
+The `deno bench` command runs benchmarks to measure and compare the performance of your code.
+
+## Usage
+
+```bash
+deno bench [OPTIONS] [FILES]...
+```
+
+## Basic Examples
+
+```bash
+# Run all benchmarks
+deno bench
+
+# Run specific benchmark file
+deno bench bench.ts
+
+# Run benchmarks matching a pattern
+deno bench --filter "sort"
+
+# Output results as JSON
+deno bench --json
+```
+
+## Benchmark Discovery
+
+Deno automatically discovers benchmark files with these patterns:
+- Files ending with `_bench.ts`, `_bench.tsx`, `_bench.js`, `_bench.jsx`
+- Files ending with `.bench.ts`, `.bench.tsx`, `.bench.js`, `.bench.jsx`
+- Files named `bench.ts`, `bench.tsx`, `bench.js`, `bench.jsx`
+
+## Filtering Options
+
+<ParamField path="--filter" type="string">
+  Run benchmarks with names matching this pattern
+  
+  ```bash
+  # String match
+  deno bench --filter "sorting"
+  
+  # Regex pattern
+  deno bench --filter "/^array/"
+  ```
+</ParamField>
+
+<ParamField path="--ignore" type="string">
+  Ignore files matching this pattern
+  
+  ```bash
+  deno bench --ignore=integration/
+  ```
+</ParamField>
+
+## Output Options
+
+<ParamField path="--json" type="boolean">
+  Output benchmark results as JSON
+  
+  ```bash
+  deno bench --json > results.json
+  ```
+</ParamField>
+
+<ParamField path="--no-run" type="boolean">
+  Only type-check benchmarks, don't run them
+  
+  ```bash
+  deno bench --no-run
+  ```
+</ParamField>
+
+## Watch Mode
+
+<ParamField path="--watch" type="string">
+  Watch for file changes and rerun benchmarks
+  
+  ```bash
+  # Watch mode
+  deno bench --watch
+  
+  # Watch specific paths
+  deno bench --watch=src/,benches/
+  ```
+</ParamField>
+
+<ParamField path="--no-clear-screen" type="boolean">
+  Don't clear the screen on watch mode restart
+</ParamField>
+
+## Permission Flags
+
+All standard Deno permission flags are available:
+
+```bash
+deno bench --allow-read --allow-net bench.ts
+```
+
+## Writing Benchmarks
+
+### Basic Benchmark
+
+```typescript
+Deno.bench("string concatenation", () => {
+  let str = "";
+  for (let i = 0; i < 1000; i++) {
+    str += "a";
+  }
+});
+```
+
+### Async Benchmark
+
+```typescript
+Deno.bench("async fetch", async () => {
+  const response = await fetch("https://example.com");
+  await response.text();
+});
+```
+
+### Benchmark with Setup and Teardown
+
+```typescript
+Deno.bench({
+  name: "array operations",
+  fn: () => {
+    const arr = Array.from({ length: 1000 }, (_, i) => i);
+    arr.sort((a, b) => b - a);
+  },
+});
+```
+
+### Baseline Comparison
+
+```typescript
+Deno.bench({
+  name: "string concat - baseline",
+  baseline: true,
+  fn: () => {
+    let str = "";
+    for (let i = 0; i < 1000; i++) {
+      str += "a";
+    }
+  },
+});
+
+Deno.bench({
+  name: "string concat - array join",
+  fn: () => {
+    const arr = [];
+    for (let i = 0; i < 1000; i++) {
+      arr.push("a");
+    }
+    arr.join("");
+  },
+});
+```
+
+### Grouped Benchmarks
+
+```typescript
+Deno.bench({
+  name: "sort - quicksort",
+  group: "sorting",
+  fn: () => {
+    const arr = Array.from({ length: 1000 }, () => Math.random());
+    quickSort(arr);
+  },
+});
+
+Deno.bench({
+  name: "sort - mergesort",
+  group: "sorting",
+  fn: () => {
+    const arr = Array.from({ length: 1000 }, () => Math.random());
+    mergeSort(arr);
+  },
+});
+```
+
+### Warmup Benchmarks
+
+```typescript
+Deno.bench({
+  name: "computation",
+  warmup: true,
+  fn: () => {
+    // Warmup iteration
+  },
+});
+```
+
+### Ignoring Benchmarks
+
+```typescript
+Deno.bench({
+  name: "expensive operation",
+  ignore: true,
+  fn: () => {
+    // Benchmark code
+  },
+});
+```
+
+## Examples
+
+### Comparing String Operations
+
+```typescript
+// string_bench.ts
+Deno.bench({
+  name: "concat with +",
+  baseline: true,
+  fn: () => {
+    let result = "";
+    for (let i = 0; i < 10000; i++) {
+      result += "test";
+    }
+  },
+});
+
+Deno.bench("concat with array join", () => {
+  const parts = [];
+  for (let i = 0; i < 10000; i++) {
+    parts.push("test");
+  }
+  parts.join("");
+});
+
+Deno.bench("template literals", () => {
+  let result = "";
+  for (let i = 0; i < 10000; i++) {
+    result = `${result}test`;
+  }
+});
+```
+
+```bash
+deno bench string_bench.ts
+```
+
+### Benchmarking with JSON Output
+
+```bash
+# Run benchmarks and save results
+deno bench --json bench.ts > results.json
+
+# Process results with jq
+deno bench --json bench.ts | jq '.results[] | {name, avg}'
+```

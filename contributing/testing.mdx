@@ -1,0 +1,615 @@
+---
+title: Testing
+description: Running and writing tests for Deno
+---
+
+Deno has a comprehensive test suite including unit tests, integration tests, and web platform tests.
+
+## Test Organization
+
+### Test Types
+
+<CardGroup cols={2}>
+  <Card title="Spec Tests" icon="file-check">
+    Integration tests using `__test__.jsonc` files
+    
+    **Location:** `tests/specs/`
+  </Card>
+  <Card title="Unit Tests" icon="flask">
+    Inline Rust tests with source code
+    
+    **Location:** Inline in `*.rs` files
+  </Card>
+  <Card title="Integration Tests" icon="puzzle-piece">
+    Additional integration tests
+    
+    **Location:** `cli/tests/`
+  </Card>
+  <Card title="Web Platform Tests" icon="globe">
+    Standards compliance tests
+    
+    **Location:** `tests/wpt/`
+  </Card>
+</CardGroup>
+
+## Running Tests
+
+### All Tests
+
+<Warning>
+Running all tests takes a significant amount of time (30+ minutes).
+</Warning>
+
+```bash
+cargo test
+```
+
+### Filtered Tests
+
+```bash
+# Filter tests by name
+cargo test http_server
+
+# Run tests matching a pattern
+cargo test "fetch_*"
+```
+
+### Package-Specific Tests
+
+```bash
+# Run tests in a specific package
+cargo test -p deno_core
+cargo test -p deno_runtime
+cargo test -p deno_fetch
+
+# Run CLI integration tests only
+cargo test --bin deno
+```
+
+### Spec Tests
+
+```bash
+# Run all spec tests
+cargo test specs
+
+# Run a specific spec test
+cargo test spec::run::basic
+
+# Run spec tests for a specific command
+cargo test spec::lint
+cargo test spec::fmt
+```
+
+### Single Test
+
+```bash
+# Run a specific test by exact name
+cargo test test_name_here --exact
+
+# Run with output
+cargo test test_name_here -- --nocapture
+```
+
+## Spec Tests
+
+Spec tests are the primary integration test format for Deno. They test CLI commands end-to-end.
+
+### How Spec Tests Work
+
+1. Create a directory in `tests/specs/`
+2. Add `__test__.jsonc` file describing test steps
+3. Add input files and expected output files
+4. Run tests with `cargo test specs`
+
+### Directory Structure
+
+```bash
+tests/specs/my_feature/
+├── __test__.jsonc      # Test definitions
+├── main.ts             # Input file
+├── expected.out        # Expected output
+└── other_file.ts       # Additional files
+```
+
+### Creating a Spec Test
+
+<Steps>
+  <Step title="Create test directory">
+    ```bash
+    mkdir -p tests/specs/my_feature
+    cd tests/specs/my_feature
+    ```
+  </Step>
+  
+  <Step title="Create __test__.jsonc">
+    ```jsonc
+    {
+      "tests": {
+        "basic_case": {
+          "args": "run main.ts",
+          "output": "expected.out"
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Create input files">
+    ```typescript
+    // main.ts
+    console.log("Hello, World!");
+    ```
+  </Step>
+  
+  <Step title="Create expected output">
+    ```
+    // expected.out
+    Hello, World!
+    ```
+  </Step>
+  
+  <Step title="Run the test">
+    ```bash
+    cargo test spec::my_feature
+    ```
+  </Step>
+</Steps>
+
+### Test Schema
+
+The `__test__.jsonc` schema is defined in `tests/specs/schema.json`.
+
+<Accordion title="Basic test structure">
+  ```jsonc
+  {
+    "tests": {
+      "test_name": {
+        "args": "run main.ts",
+        "output": "expected.out"
+      }
+    }
+  }
+  ```
+</Accordion>
+
+<Accordion title="Multi-step test">
+  ```jsonc
+  {
+    "tests": {
+      "multi_step": {
+        "steps": [
+          {
+            "args": "cache main.ts",
+            "output": "[WILDCARD]Download[WILDCARD]"
+          },
+          {
+            "args": "run main.ts",
+            "output": "main.out"
+          }
+        ]
+      }
+    }
+  }
+  ```
+</Accordion>
+
+<Accordion title="With environment variables">
+  ```jsonc
+  {
+    "tests": {
+      "with_env": {
+        "args": "run main.ts",
+        "output": "expected.out",
+        "envs": {
+          "MY_VAR": "value"
+        }
+      }
+    }
+  }
+  ```
+</Accordion>
+
+<Accordion title="Exit code check">
+  ```jsonc
+  {
+    "tests": {
+      "should_fail": {
+        "args": "run invalid.ts",
+        "output": "error.out",
+        "exitCode": 1
+      }
+    }
+  }
+  ```
+</Accordion>
+
+### Output Assertions
+
+Expected output supports pattern matching:
+
+#### Wildcards
+
+```
+[WILDCARD] - Match 0+ characters (can cross newlines)
+[WILDLINE] - Match 0+ characters until end of line
+[WILDCHAR] - Match exactly one character
+[WILDCHARS(5)] - Match exactly 5 characters
+```
+
+**Example:**
+```
+Check file://[WILDCARD]/main.ts
+[WILDCARD]
+Successfully compiled [WILDLINE]
+```
+
+#### Unordered Output
+
+For non-deterministic output order:
+
+```
+[UNORDERED_START]
+line 1
+line 2
+line 3
+[UNORDERED_END]
+```
+
+These lines will match in any order.
+
+#### Comments
+
+```
+[# This is a comment and will be ignored]
+Actual output to match
+[# Another comment]
+```
+
+#### Inline Output
+
+You can specify output inline instead of in a separate file:
+
+```jsonc
+{
+  "tests": {
+    "inline_output": {
+      "args": "run main.ts",
+      "output": "Hello, World!\n"
+    }
+  }
+}
+```
+
+### Real-World Examples
+
+<CodeGroup>
+```jsonc Basic Run Test
+// tests/specs/run/basic/__test__.jsonc
+{
+  "tests": {
+    "simple_script": {
+      "args": "run --allow-read main.ts",
+      "output": "main.out"
+    }
+  }
+}
+```
+
+```jsonc Lint Test
+// tests/specs/lint/fix/__test__.jsonc
+{
+  "tests": {
+    "fix_lint_errors": {
+      "steps": [
+        {
+          "args": "lint --fix main.ts",
+          "output": "Checked 1 file\n"
+        },
+        {
+          "args": "lint main.ts",
+          "output": "Checked 1 file\n"
+        }
+      ]
+    }
+  }
+}
+```
+
+```jsonc Type Check Test
+// tests/specs/check/type_error/__test__.jsonc
+{
+  "tests": {
+    "type_error": {
+      "args": "check main.ts",
+      "output": "main.out",
+      "exitCode": 1
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Unit Tests
+
+Unit tests are written inline with Rust code using `#[test]` and `#[cfg(test)]`.
+
+### Writing Unit Tests
+
+```rust
+// In your .rs file
+#[cfg(test)]
+mod tests {
+  use super::*;
+  
+  #[test]
+  fn test_my_function() {
+    let result = my_function("input");
+    assert_eq!(result, "expected");
+  }
+  
+  #[test]
+  fn test_error_case() {
+    let result = fallible_function();
+    assert!(result.is_err());
+  }
+  
+  #[tokio::test]
+  async fn test_async_function() {
+    let result = async_function().await;
+    assert!(result.is_ok());
+  }
+}
+```
+
+### Running Unit Tests
+
+```bash
+# Run all unit tests in a file
+cargo test --lib
+
+# Run tests in specific package
+cargo test -p deno_core --lib
+
+# Run specific test
+cargo test tests::test_my_function --exact
+```
+
+## Integration Tests
+
+Additional integration tests in `cli/tests/` and `tests/integration/`.
+
+```bash
+# Run all integration tests
+cargo test --test integration
+
+# Run specific integration test file
+cargo test --test integration test_name
+```
+
+## Web Platform Tests
+
+WPT tests verify compliance with web standards.
+
+### Running WPT Tests
+
+```bash
+# Run all WPT tests
+cargo test wpt
+
+# Run specific WPT suite
+cargo test wpt_fetch
+cargo test wpt_url
+```
+
+### Location
+
+```bash
+tests/wpt/
+├── runner/            # Test runner
+├── suite/             # WPT test files (git submodule)
+└── README.md          # Documentation
+```
+
+## Test Best Practices
+
+<Steps>
+  <Step title="Use spec tests for CLI commands">
+    Spec tests are ideal for testing command-line behavior:
+    
+    ```jsonc
+    {
+      "tests": {
+        "my_command": {
+          "args": "my-command --flag input.ts",
+          "output": "expected.out"
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Use unit tests for logic">
+    Test individual functions with unit tests:
+    
+    ```rust
+    #[test]
+    fn test_parse_config() {
+      let config = parse_config("{}");
+      assert!(config.is_ok());
+    }
+    ```
+  </Step>
+  
+  <Step title="Test both success and failure cases">
+    ```rust
+    #[test]
+    fn test_success_case() { /* ... */ }
+    
+    #[test]
+    fn test_error_case() { /* ... */ }
+    ```
+  </Step>
+  
+  <Step title="Use wildcards for non-deterministic output">
+    ```
+    Downloaded [WILDCARD] packages
+    Time: [WILDCARD]ms
+    ```
+  </Step>
+  
+  <Step title="Keep tests focused and isolated">
+    Each test should test one specific behavior.
+  </Step>
+</Steps>
+
+## Debugging Test Failures
+
+### Show Test Output
+
+```bash
+# Show stdout/stderr from tests
+cargo test -- --nocapture
+
+# Show output for specific test
+cargo test test_name -- --nocapture
+```
+
+### Run Single Test
+
+```bash
+# Run only one test
+cargo test test_name --exact
+
+# Run in release mode (faster)
+cargo test --release test_name
+```
+
+### Update Spec Test Output
+
+When output format changes intentionally:
+
+1. Run the test to see the actual output
+2. Update the `.out` file with the new expected output
+3. Verify the test passes
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Spec test output mismatch">
+    **Problem:** Output doesn't match expected
+    
+    **Solution:**
+    1. Check the test output carefully
+    2. Use `[WILDCARD]` for variable parts
+    3. Update `.out` file if output intentionally changed
+  </Accordion>
+  
+  <Accordion title="Flaky tests">
+    **Problem:** Test passes sometimes, fails other times
+    
+    **Solution:**
+    1. Use `[UNORDERED_START]`/`[UNORDERED_END]` for unordered output
+    2. Check for race conditions
+    3. Add timeouts or retries if needed
+  </Accordion>
+  
+  <Accordion title="Permission errors in tests">
+    **Problem:** Test fails with permission denied
+    
+    **Solution:**
+    1. Ensure test grants necessary permissions
+    2. Check file permissions on test fixtures
+    3. Use `--allow-all` if appropriate for test
+  </Accordion>
+</AccordionGroup>
+
+## Performance Testing
+
+### Benchmarks
+
+Run benchmarks:
+
+```bash
+# Run all benchmarks
+cargo bench
+
+# Run specific benchmark
+cargo bench bench_name
+```
+
+### Profiling
+
+```bash
+# Build with profiling symbols
+cargo build --release --features=profiling
+
+# Run with profiler
+perf record -g ./target/release/deno run script.ts
+perf report
+```
+
+## Continuous Integration
+
+Tests run automatically on:
+
+- Every commit to a PR
+- Every merge to `main`
+- Nightly builds
+
+### CI Test Matrix
+
+- Linux (Ubuntu)
+- macOS
+- Windows
+- Multiple Rust versions
+
+### Running CI Tests Locally
+
+```bash
+# Format check
+./tools/format.js
+
+# Lint
+./tools/lint.js
+
+# Test
+cargo test
+```
+
+## Test Coverage
+
+### Generate Coverage Report
+
+```bash
+# Install cargo-llvm-cov
+cargo install cargo-llvm-cov
+
+# Generate coverage
+cargo llvm-cov --html
+
+# Open report
+open target/llvm-cov/html/index.html
+```
+
+## Writing Good Tests
+
+<Card title="Test Checklist" icon="check">
+  - Test covers the happy path
+  - Test covers error cases
+  - Test is deterministic (no race conditions)
+  - Test is isolated (doesn't depend on other tests)
+  - Test has clear, descriptive name
+  - Output assertions use wildcards where appropriate
+  - Test runs quickly (< 1 second if possible)
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Debugging" icon="bug" href="/contributing/debugging">
+    Learn debugging techniques
+  </Card>
+  <Card title="Code Structure" icon="folder-tree" href="/contributing/code-structure">
+    Understand the codebase
+  </Card>
+</CardGroup>

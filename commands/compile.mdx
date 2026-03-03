@@ -1,0 +1,287 @@
+---
+title: deno compile
+description: Compile your Deno script into a standalone executable
+---
+
+The `deno compile` command compiles a Deno script into a self-contained executable that can run without the Deno CLI installed.
+
+## Usage
+
+```bash
+deno compile [OPTIONS] <SOURCE_FILE>
+```
+
+## Basic Examples
+
+```bash
+# Compile a script
+deno compile main.ts
+
+# Compile with custom output name
+deno compile --output myapp main.ts
+
+# Compile with permissions
+deno compile --allow-net --allow-read main.ts
+
+# Cross-compile for different platform
+deno compile --target x86_64-unknown-linux-gnu main.ts
+```
+
+## Output Options
+
+<ParamField path="--output" type="string">
+  Set the output file name
+  
+  ```bash
+  # Custom output name
+  deno compile --output myserver server.ts
+  
+  # Output to specific directory
+  deno compile --output ./dist/myapp main.ts
+  
+  # Directory path (infers name from script)
+  deno compile --output ./dist/ main.ts
+  ```
+</ParamField>
+
+## Cross-compilation
+
+<ParamField path="--target" type="string">
+  Compile for a specific target platform
+  
+  ```bash
+  # Linux
+  deno compile --target x86_64-unknown-linux-gnu main.ts
+  
+  # macOS (Intel)
+  deno compile --target x86_64-apple-darwin main.ts
+  
+  # macOS (Apple Silicon)
+  deno compile --target aarch64-apple-darwin main.ts
+  
+  # Windows
+  deno compile --target x86_64-pc-windows-msvc main.ts
+  ```
+</ParamField>
+
+## Including Files
+
+<ParamField path="--include" type="string">
+  Include additional files in the compiled output
+  
+  ```bash
+  # Include configuration files
+  deno compile --include config.json,data/ main.ts
+  
+  # Include templates
+  deno compile --include templates/ server.ts
+  ```
+</ParamField>
+
+<ParamField path="--exclude" type="string">
+  Exclude specific files or patterns
+  
+  ```bash
+  deno compile --exclude test/,*.test.ts main.ts
+  ```
+</ParamField>
+
+## Executable Options
+
+<ParamField path="--no-terminal" type="boolean">
+  Compile as a GUI application (Windows only)
+  
+  ```bash
+  deno compile --no-terminal --output myapp.exe main.ts
+  ```
+</ParamField>
+
+<ParamField path="--icon" type="string">
+  Set a custom icon for the executable (Windows only)
+  
+  ```bash
+  deno compile --icon icon.ico --output myapp.exe main.ts
+  ```
+</ParamField>
+
+## Advanced Options
+
+<ParamField path="--eszip" type="boolean">
+  Output an .eszip file instead of an executable
+  
+  ```bash
+  deno compile --eszip main.ts
+  # Creates main.eszip
+  ```
+</ParamField>
+
+## Permission Flags
+
+All permissions must be specified at compile time:
+
+```bash
+# Network access
+deno compile --allow-net main.ts
+
+# File system access
+deno compile --allow-read --allow-write main.ts
+
+# Subprocess execution
+deno compile --allow-run main.ts
+
+# Multiple permissions
+deno compile --allow-net --allow-read --allow-env main.ts
+```
+
+## Configuration
+
+<ParamField path="--config" type="string">
+  Load configuration from a file
+  
+  ```bash
+  deno compile --config deno.json main.ts
+  ```
+</ParamField>
+
+<ParamField path="--import-map" type="string">
+  Load import map file
+  
+  ```bash
+  deno compile --import-map import_map.json main.ts
+  ```
+</ParamField>
+
+<ParamField path="--node-modules-dir" type="boolean">
+  Create a node_modules directory for npm packages
+  
+  ```bash
+  deno compile --node-modules-dir main.ts
+  ```
+</ParamField>
+
+## Examples
+
+### Simple CLI Tool
+
+```typescript
+// cli.ts
+const name = Deno.args[0] ?? "World";
+console.log(`Hello, ${name}!`);
+```
+
+```bash
+# Compile
+deno compile --output hello cli.ts
+
+# Run the executable
+./hello
+./hello Deno
+```
+
+### Web Server
+
+```typescript
+// server.ts
+Deno.serve({ port: 8000 }, () => {
+  return new Response("Hello, World!");
+});
+```
+
+```bash
+# Compile with network permission
+deno compile --allow-net --output server server.ts
+
+# Run the server
+./server
+```
+
+### File Processing Tool
+
+```typescript
+// process.ts
+const inputFile = Deno.args[0];
+const content = await Deno.readTextFile(inputFile);
+const processed = content.toUpperCase();
+await Deno.writeTextFile("output.txt", processed);
+```
+
+```bash
+# Compile with file permissions
+deno compile --allow-read --allow-write --output process process.ts
+
+# Run
+./process input.txt
+```
+
+### Cross-Platform Compilation
+
+```bash
+# Build for all major platforms
+deno compile --target x86_64-unknown-linux-gnu --output myapp-linux main.ts
+deno compile --target x86_64-apple-darwin --output myapp-macos main.ts
+deno compile --target x86_64-pc-windows-msvc --output myapp-windows main.ts
+```
+
+### Including Assets
+
+```typescript
+// app.ts
+const template = await Deno.readTextFile("./templates/index.html");
+const config = JSON.parse(await Deno.readTextFile("./config.json"));
+
+Deno.serve(() => {
+  return new Response(template, {
+    headers: { "content-type": "text/html" },
+  });
+});
+```
+
+```bash
+# Include templates and config
+deno compile \
+  --allow-net \
+  --allow-read \
+  --include templates/,config.json \
+  --output webapp \
+  app.ts
+```
+
+### NPM Package Compilation
+
+```typescript
+// npm-app.ts
+import express from "npm:express@4";
+
+const app = express();
+app.get("/", (req, res) => res.send("Hello from Express!"));
+app.listen(3000);
+```
+
+```bash
+# Compile with npm packages
+deno compile --allow-net --allow-read --allow-env --output express-app npm-app.ts
+```
+
+## Platform-Specific Notes
+
+### Windows
+
+- Executables automatically get `.exe` extension
+- Use `--no-terminal` for GUI applications
+- Use `--icon` to set custom icon
+
+### macOS
+
+- Executables may need to be signed for distribution
+- Use `chmod +x` to make executable if needed
+- Different targets for Intel (`x86_64`) and Apple Silicon (`aarch64`)
+
+### Linux
+
+- Executables are created without extension
+- May need to mark as executable: `chmod +x myapp`
+- Works on most distributions
+
+## Size Optimization
+
+Compiled executables include the Deno runtime, so they are typically 40-90 MB. Future optimizations may reduce this size.

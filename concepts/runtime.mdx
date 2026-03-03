@@ -1,0 +1,194 @@
+---
+title: Runtime Architecture
+description: Understanding how Deno's runtime is built on V8, Rust, and Tokio
+---
+
+## Overview
+
+Deno is a JavaScript, TypeScript, and WebAssembly runtime with secure defaults and a great developer experience. The runtime is built on three core technologies:
+
+- **V8**: Google's JavaScript and WebAssembly engine
+- **Rust**: Systems programming language for the runtime implementation
+- **Tokio**: Asynchronous runtime for Rust
+
+## Architecture Components
+
+### V8 JavaScript Engine
+
+At its core, Deno uses V8, the same JavaScript engine that powers Chrome and Node.js. V8 compiles JavaScript to native machine code for fast execution and provides:
+
+- Just-in-time (JIT) compilation
+- Optimized garbage collection
+- WebAssembly support
+- Modern JavaScript features (ES2023+)
+
+### Rust Runtime Layer
+
+The Deno runtime is implemented in Rust, providing:
+
+- Memory safety without garbage collection
+- Zero-cost abstractions
+- Secure defaults through explicit permissions
+- Native performance for system operations
+
+<CodeGroup>
+```rust Runtime Structure
+// From runtime/README.md
+// MainWorker encapsulates deno_core::JsRuntime with
+// a set of ops used to implement the Deno namespace
+
+pub struct MainWorker {
+  // Highly configurable with support for:
+  // - Module loading implementation
+  // - Error formatting
+  // - Source maps
+  // - V8 inspector and Chrome DevTools debugger
+  // - HTTP client configuration
+}
+```
+</CodeGroup>
+
+### Tokio Async Runtime
+
+Deno uses Tokio for asynchronous I/O operations:
+
+- Multi-threaded task scheduler
+- Async filesystem operations
+- Network I/O
+- Timer management
+
+<Note>
+The combination of V8's JavaScript execution, Rust's safety guarantees, and Tokio's async capabilities creates a runtime that is both fast and secure.
+</Note>
+
+## Runtime Structure
+
+### MainWorker
+
+The main API of the `deno_runtime` crate is `MainWorker`, which:
+
+- Encapsulates `deno_core::JsRuntime`
+- Implements the `Deno` namespace
+- Manages the module loading pipeline
+- Handles permissions checking
+
+```typescript Example: Running Code
+Deno.serve((req: Request) => {
+  return new Response("Hello, world!");
+});
+```
+
+When you run this code with `deno run --allow-net server.ts`, the runtime:
+
+1. **Parses** the TypeScript code
+2. **Type checks** (if enabled)
+3. **Compiles** TypeScript to JavaScript
+4. **Loads** the module into V8
+5. **Executes** with the granted permissions
+
+### Web Workers
+
+Deno supports the Worker Web API through `WebWorker` structures:
+
+- Each worker spawns a dedicated OS thread
+- Workers are descendants of `MainWorker`
+- Communication happens via message passing
+- Workers inherit or restrict parent permissions
+
+<CodeGroup>
+```typescript Creating a Worker
+const worker = new Worker(
+  new URL("./worker.ts", import.meta.url).href,
+  { type: "module" }
+);
+
+worker.postMessage({ task: "process" });
+
+worker.onmessage = (e) => {
+  console.log("Result:", e.data);
+};
+```
+
+```typescript worker.ts
+self.onmessage = (e) => {
+  const result = processTask(e.data.task);
+  self.postMessage(result);
+};
+```
+</CodeGroup>
+
+## Extensions System
+
+Deno's functionality is organized into extensions located in the `ext/` directory:
+
+- **ext/web**: Web APIs (fetch, streams, events)
+- **ext/net**: Network operations
+- **ext/fs**: Filesystem operations
+- **ext/http**: HTTP server
+- **ext/crypto**: Web Crypto API
+- **ext/node**: Node.js compatibility
+
+Each extension provides:
+
+1. **Ops**: Rust functions exposed to JavaScript
+2. **JavaScript APIs**: High-level interfaces
+3. **Type definitions**: TypeScript declarations
+
+<Info>
+Extensions provide native functionality to JavaScript through a secure "ops" system, where each operation can be permission-checked before execution.
+</Info>
+
+## Module Loading
+
+The module loader handles ES modules, TypeScript, and various module formats:
+
+```rust
+// From cli/module_loader.rs
+// The CliModuleLoader implements:
+// - Module resolution (file://, https://, npm:)
+// - TypeScript compilation
+// - Source map handling
+// - Code caching for performance
+```
+
+### Module Resolution
+
+Deno resolves modules in this order:
+
+1. **File protocol**: Local filesystem (`file://`)
+2. **HTTP(S)**: Remote modules (`https://`)
+3. **npm**: npm packages (`npm:package@version`)
+4. **jsr**: JSR packages (`jsr:@scope/package`)
+5. **node**: Node.js built-ins (`node:fs`)
+
+## Performance Optimizations
+
+### Code Caching
+
+Deno caches compiled code to improve startup performance:
+
+- V8 code cache for JavaScript modules
+- Incremental compilation for TypeScript
+- Cache invalidation based on file modification time
+
+### Fast Ops
+
+The ops system provides zero-copy operations between Rust and JavaScript:
+
+```rust
+// Operations are optimized for minimal overhead
+// Direct buffer access without copying
+// Fast FFI for native functions
+```
+
+## Security Model
+
+The runtime enforces security at multiple levels:
+
+1. **Permission checks** before any privileged operation
+2. **Sandboxed V8 execution** without host access by default
+3. **Explicit grants** required for filesystem, network, environment
+
+<Card title="Next Steps" icon="arrow-right">
+Learn about [Deno's permission system](/concepts/permissions) to understand how security is enforced at runtime.
+</Card>
